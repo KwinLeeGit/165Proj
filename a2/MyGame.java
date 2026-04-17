@@ -36,12 +36,12 @@ public class MyGame extends VariableFrameRateGame
 	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
-	private GameObject dol, xAxis, yAxis, zAxis, floor;
-	private ObjShape dolS, xAxisS, yAxisS, zAxisS, floorS;
-	private TextureImage doltx, floortx, boundaries;
+	private GameObject avatar, xAxis, yAxis, zAxis, floor;
+	private ObjShape avatarS, xAxisS, yAxisS, zAxisS, floorS;
+	private TextureImage avatartx, floortx, boundaries;
 	private Light light1, light2, light3, light4;
-	private PhysicsObject dolPhy;
-	private float dolRadius = 3.0f;
+	private PhysicsObject avatarPhy;
+	private float avatarRadius = 3.0f;
 	private float yawAngle = 0.0f;
 	private float pitchAngle = 0.0f;
 	private Robot robot;
@@ -66,7 +66,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadShapes()
-	{	dolS = new ImportedModel("dolphinHighPoly.obj");
+	{	avatarS = new ImportedModel("dolphinHighPoly.obj");
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
@@ -75,7 +75,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadTextures()
-	{	doltx = new TextureImage("Dolphin_HighPolyUV.jpg");
+	{	avatartx = new TextureImage("Dolphin_HighPolyUV.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
 	}
@@ -86,14 +86,14 @@ public class MyGame extends VariableFrameRateGame
 
 		SceneGraph sg = engine.getSceneGraph();
 
-		// build dolphin in the center of the window
-		dol = new GameObject(GameObject.root(), dolS, doltx);
+		// build avatarphin in the center of the window
+		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
 		initialScale = (new Matrix4f()).scaling(3.0f);
-		dol.setLocalTranslation(initialTranslation);
-		dol.setLocalScale(initialScale);
-		dolPhy = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
-		dol.setPhysicsObject(dolPhy);
+		avatar.setLocalTranslation(initialTranslation);
+		avatar.setLocalScale(initialScale);
+		avatarPhy = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
+		avatar.setPhysicsObject(avatarPhy);
 
 		xAxis = new GameObject(GameObject.root(), xAxisS);
 		yAxis = new GameObject(GameObject.root(), yAxisS);
@@ -202,27 +202,27 @@ public class MyGame extends VariableFrameRateGame
 		if (riding) {
 
 			if (moveForward) {
-				Vector3f fwd = dol.getWorldForwardVector();
-				Vector3f loc = dol.getWorldLocation();
-				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(moveSpeed)));
+				Vector3f fwd = avatar.getWorldForwardVector();
+				Vector3f loc = avatar.getWorldLocation();
+				avatar.setLocalLocation(loc.add(new Vector3f(fwd).mul(moveSpeed)));
 				heightAdjust();
 			}
 
     		if (moveBackward) {
-				Vector3f fwd = dol.getWorldForwardVector();
-				Vector3f loc = dol.getWorldLocation();
-				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(-moveSpeed)));
+				Vector3f fwd = avatar.getWorldForwardVector();
+				Vector3f loc = avatar.getWorldLocation();
+				avatar.setLocalLocation(loc.add(new Vector3f(fwd).mul(-moveSpeed)));
 				heightAdjust();
 			}
 
 			if (turnLeft) {
-				Matrix4f rot = dol.getWorldRotation();
-				dol.setLocalRotation(rot.rotate(turnSpeed, 0, 1, 0));
+				Matrix4f rot = avatar.getWorldRotation();
+				avatar.setLocalRotation(rot.rotate(turnSpeed, 0, 1, 0));
 			}
 
 			if (turnRight) {
-				Matrix4f rot = dol.getWorldRotation();
-				dol.setLocalRotation(rot.rotate(-turnSpeed, 0, 1, 0));
+				Matrix4f rot = avatar.getWorldRotation();
+				avatar.setLocalRotation(rot.rotate(-turnSpeed, 0, 1, 0));
 			}
 			updateRidingCamera();
 		}
@@ -270,27 +270,27 @@ public class MyGame extends VariableFrameRateGame
 		
 	}
 
-	public GameObject getAvatar() {return dol;}
+	public GameObject getAvatar() {return avatar;}
 
 	public void toggleCameraMode() {
 		riding = !riding;
 	}
 
 	public void heightAdjust() {
-		Vector3f loc = dol.getWorldLocation();
+		Vector3f loc = avatar.getWorldLocation();
 		float height = floor.getHeight(loc.x(), loc.z());
 
-		dol.setLocalLocation(new Vector3f(loc.x(), height, loc.z()));
+		avatar.setLocalLocation(new Vector3f(loc.x(), height, loc.z()));
 	}
 
 	private void updateRidingCamera() {
 
 		cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
 
-		fwd = dol.getWorldForwardVector();
-		loc = dol.getWorldLocation();
-		up = dol.getWorldUpVector();
-		right = dol.getWorldRightVector();
+		fwd = avatar.getWorldForwardVector();
+		loc = avatar.getWorldLocation();
+		up = avatar.getWorldUpVector();
+		right = avatar.getWorldRightVector();
 		cam.setU(right);
 		cam.setV(up);
 		cam.setN(fwd);
