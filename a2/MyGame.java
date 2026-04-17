@@ -33,6 +33,7 @@ public class MyGame extends VariableFrameRateGame
 	private boolean moveForward, moveBackward, turnLeft, turnRight;
 	private String gameState = "play";
 	private int counter=0;
+	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
 	private GameObject dol, pyr1, pyr2, pyr3, xAxis, yAxis, zAxis, home, cap1, cap2, cap3, floor;
@@ -90,6 +91,10 @@ public class MyGame extends VariableFrameRateGame
 		cap3tx = pyr3tx;
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
+		TextureImage [] skyboxtx = new TextureImage[6];
+		for (int i = 0; i<6; i++) {
+			skyboxtx[i] = new TextureImage("walls.jpg");
+		}
 	}
 
 	@Override
@@ -115,7 +120,6 @@ public class MyGame extends VariableFrameRateGame
 		pyr1Phy = sg.addPhysicsSphere(0.0f, new Vector3f(15,0,0), new Quaternionf(), 5.0f);
 		pyr1.setPhysicsObject(pyr1Phy);
 		
-
 		pyr2 = new GameObject(GameObject.root(), pyrS, pyr2tx);
 		initialTranslation = (new Matrix4f()).translation(15,0,15);
 		initialScale = (new Matrix4f()).scaling(1.0f);
@@ -220,6 +224,15 @@ public class MyGame extends VariableFrameRateGame
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY
 		);
 
+	}
+
+	@Override
+	public void loadSkyBoxes() {
+
+		walls = (engine.getSceneGraph()).loadCubeMap("walls");
+
+		(engine.getSceneGraph()).setActiveSkyBoxTexture(walls);
+		(engine.getSceneGraph()).setSkyBoxEnabled(true);
 	}
 
 	@Override
