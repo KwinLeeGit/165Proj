@@ -37,7 +37,7 @@ public class MyGame extends VariableFrameRateGame
 
 	private GameObject dol, pyr1, pyr2, pyr3, xAxis, yAxis, zAxis, home, cap1, cap2, cap3, floor;
 	private ObjShape dolS, pyrS, xAxisS, yAxisS, zAxisS, homeS, capS, floorS;
-	private TextureImage doltx, pyr1tx, pyr2tx, pyr3tx, hometx, cap1tx, cap2tx, cap3tx, floortx;
+	private TextureImage doltx, pyr1tx, pyr2tx, pyr3tx, hometx, cap1tx, cap2tx, cap3tx, floortx, boundaries;
 	private Light light1, light2, light3, light4;
 	private PhysicsObject dolPhy, pyr1Phy, pyr2Phy, pyr3Phy;
 	private float dolRadius = 3.0f;
@@ -75,7 +75,7 @@ public class MyGame extends VariableFrameRateGame
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
 		homeS = new ManualHome();
 		capS = new Plane();
-		floorS = new Plane();
+		floorS = new TerrainPlane(1000);
 	}
 
 	@Override
@@ -88,7 +88,8 @@ public class MyGame extends VariableFrameRateGame
 		cap1tx = pyr1tx;
 		cap2tx = pyr2tx;
 		cap3tx = pyr3tx;
-		floortx = new TextureImage("floor.jpg");
+		floortx = new TextureImage("grid.jpg");
+		boundaries = new TextureImage("boundaries.jpg");
 	}
 
 	@Override
@@ -144,9 +145,12 @@ public class MyGame extends VariableFrameRateGame
 
 		floor = new GameObject(GameObject.root(), floorS, floortx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
-		initialScale = (new Matrix4f()).scaling(50.0f);
+		initialScale = (new Matrix4f()).scaling(50.0f, 1.0f, 50.0f);
 		floor.setLocalTranslation(initialTranslation);
 		floor.setLocalScale(initialScale);
+		floor.setHeightMap(boundaries);
+		floor.getRenderStates().setTiling(1);
+		floor.getRenderStates().setTileFactor(10);
 	
 	}
 
@@ -220,7 +224,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void update()
-	{	// rotate dolphin if not paused
+	{	
 		im.update((float)elapsTime);
 		lastFrameTime = currFrameTime;
 		currFrameTime = System.currentTimeMillis();
@@ -236,12 +240,14 @@ public class MyGame extends VariableFrameRateGame
 				Vector3f fwd = dol.getWorldForwardVector();
 				Vector3f loc = dol.getWorldLocation();
 				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(moveSpeed)));
+				heightAdjust();
 			}
 
     		if (moveBackward) {
 				Vector3f fwd = dol.getWorldForwardVector();
 				Vector3f loc = dol.getWorldLocation();
 				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(-moveSpeed)));
+				heightAdjust();
 			}
 
 			if (turnLeft) {
@@ -336,6 +342,13 @@ public class MyGame extends VariableFrameRateGame
 
 	public void toggleCameraMode() {
 		riding = !riding;
+	}
+
+	public void heightAdjust() {
+		Vector3f loc = dol.getWorldLocation();
+		float height = floor.getHeight(loc.x(), loc.z());
+
+		dol.setLocalLocation(new Vector3f(loc.x(), height, loc.z()));
 	}
 
 	private void updateRidingCamera() {
