@@ -36,15 +36,12 @@ public class MyGame extends VariableFrameRateGame
 	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
-	private GameObject dol, pyr1, pyr2, pyr3, xAxis, yAxis, zAxis, home, cap1, cap2, cap3, floor;
-	private ObjShape dolS, pyrS, xAxisS, yAxisS, zAxisS, homeS, capS, floorS;
-	private TextureImage doltx, pyr1tx, pyr2tx, pyr3tx, hometx, cap1tx, cap2tx, cap3tx, floortx, boundaries;
+	private GameObject dol, xAxis, yAxis, zAxis, floor;
+	private ObjShape dolS, xAxisS, yAxisS, zAxisS, floorS;
+	private TextureImage doltx, floortx, boundaries;
 	private Light light1, light2, light3, light4;
-	private PhysicsObject dolPhy, pyr1Phy, pyr2Phy, pyr3Phy;
+	private PhysicsObject dolPhy;
 	private float dolRadius = 3.0f;
-    private float pyr1Radius = 5.0f;
-    private float pyr2Radius = 1.0f;
-    private float pyr3Radius = 3.0f;
 	private float yawAngle = 0.0f;
 	private float pitchAngle = 0.0f;
 	private Robot robot;
@@ -70,31 +67,17 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadShapes()
 	{	dolS = new ImportedModel("dolphinHighPoly.obj");
-		pyrS = new ManualPyramid();
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
-		homeS = new ManualHome();
-		capS = new Plane();
 		floorS = new TerrainPlane(1000);
 	}
 
 	@Override
 	public void loadTextures()
 	{	doltx = new TextureImage("Dolphin_HighPolyUV.jpg");
-		pyr1tx = new TextureImage("ice.jpg");
-		pyr2tx = new TextureImage("brick1.jpg");
-		pyr3tx = new TextureImage("earth.jpg");
-		hometx = new TextureImage("brick1.jpg");
-		cap1tx = pyr1tx;
-		cap2tx = pyr2tx;
-		cap3tx = pyr3tx;
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
-		TextureImage [] skyboxtx = new TextureImage[6];
-		for (int i = 0; i<6; i++) {
-			skyboxtx[i] = new TextureImage("walls.jpg");
-		}
 	}
 
 	@Override
@@ -112,40 +95,9 @@ public class MyGame extends VariableFrameRateGame
 		dolPhy = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
 		dol.setPhysicsObject(dolPhy);
 
-		pyr1 = new GameObject(GameObject.root(), pyrS, pyr1tx);
-		initialTranslation = (new Matrix4f()).translation(15,0,0);
-		initialScale = (new Matrix4f()).scaling(5.0f);
-		pyr1.setLocalTranslation(initialTranslation);
-		pyr1.setLocalScale(initialScale);
-		pyr1Phy = sg.addPhysicsSphere(0.0f, new Vector3f(15,0,0), new Quaternionf(), 5.0f);
-		pyr1.setPhysicsObject(pyr1Phy);
-		
-		pyr2 = new GameObject(GameObject.root(), pyrS, pyr2tx);
-		initialTranslation = (new Matrix4f()).translation(15,0,15);
-		initialScale = (new Matrix4f()).scaling(1.0f);
-		pyr2.setLocalTranslation(initialTranslation);
-		pyr2.setLocalScale(initialScale);
-		pyr2Phy = sg.addPhysicsSphere(0.0f, new Vector3f(15,0,15), new Quaternionf(), 1.0f);
-		pyr2.setPhysicsObject(pyr2Phy);
-
-		pyr3 = new GameObject(GameObject.root(), pyrS, pyr3tx);
-		initialTranslation = (new Matrix4f()).translation(0,0,15);
-		initialScale = (new Matrix4f()).scaling(3.0f);
-		pyr3.setLocalTranslation(initialTranslation);
-		pyr3.setLocalScale(initialScale);
-		pyr3Phy = sg.addPhysicsSphere(0.0f, new Vector3f(0,0,15), new Quaternionf(), 3.0f);
-		pyr3.setPhysicsObject(pyr3Phy);
-
 		xAxis = new GameObject(GameObject.root(), xAxisS);
 		yAxis = new GameObject(GameObject.root(), yAxisS);
 		zAxis = new GameObject(GameObject.root(), zAxisS);
-
-		home = new GameObject(GameObject.root(), homeS, hometx);
-		initialTranslation = (new Matrix4f()).translation(0,0,0);
-		initialScale = (new Matrix4f()).scaling(10.0f);
-		home.setLocalTranslation(initialTranslation);
-		home.setLocalScale(initialScale);
-		home.getRenderStates().hasLighting(true);
 
 		floor = new GameObject(GameObject.root(), floorS, floortx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
@@ -297,39 +249,6 @@ public class MyGame extends VariableFrameRateGame
 
 		if (!mouseInitiated) initMouseMode();
 
-		// calculate distances
-		float dist1 = dol.getWorldLocation().distance(pyr1.getWorldLocation());
-		float dist2 = dol.getWorldLocation().distance(pyr2.getWorldLocation());
-		float dist3 = dol.getWorldLocation().distance(pyr3.getWorldLocation());
-
-		// check collisions
-		if (dist1 < 0.8*(dolRadius + pyr1Radius) ||
-			dist2 < 0.8*(dolRadius + pyr2Radius)||
-			dist3 < 0.8*(dolRadius + pyr3Radius)) {
-			gameState = "lose";
-			paused= true;
-		}
-
-		if (dist1 < 1.1*(dolRadius + pyr1Radius) ||
-			dist2 < 1.1*(dolRadius + pyr2Radius) ||
-			dist3 < 1.1*(dolRadius + pyr3Radius)) {
-			prox = true;
-		}
-		else{prox = false;}
-
-		Vector3f dolLoc = dol.getWorldLocation();
-		dolPhy.setLocation(new float[] {
-        dolLoc.x(),
-        dolLoc.y(),
-        dolLoc.z()
-		});
-
-		if (counter >= 3) {
-			gameState = "win";
-		}
-
-
-
 		// build and set HUD
 		String counterStr = Integer.toString(counter);
 		String dispStr1 = "Distance: Too Far";
@@ -449,28 +368,6 @@ public class MyGame extends VariableFrameRateGame
 
 	public void pauseGame() {
 		paused = !paused;
-	}
-
-	public void tryPic(){
-
-		float dist1 = dol.getWorldLocation().distance(pyr1.getWorldLocation());
-		float dist2 = dol.getWorldLocation().distance(pyr2.getWorldLocation());
-		float dist3 = dol.getWorldLocation().distance(pyr3.getWorldLocation());
-
-		if (prox == true){
-			if (dist1 < 1.25*(dolRadius + pyr1Radius) && pic1 == false){
-				counter++;
-				pic1 = true;
-			}
-			else if(dist2 < 1.25*(dolRadius + pyr2Radius) && pic2 == false) {
-				counter++;
-				pic2 = true;
-			}
-			else if(dist3 < 1.25*(dolRadius + pyr3Radius) && pic3 == false) {
-				counter++;
-				pic3 = true;
-			}
-		}
 	}
 
 	private void initMouseMode()
