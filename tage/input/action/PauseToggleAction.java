@@ -3,27 +3,18 @@ import tage.GameObject;
 import tage.input.action.AbstractInputAction;
 
 import net.java.games.input.Event;
-
-import java.util.Vector;
-
 import org.joml.*;
 
 import a2.MyGame;
-
-public class TurnLeftAction extends AbstractInputAction {
+public class PauseToggleAction extends AbstractInputAction {
     private MyGame game;
 
-    public TurnLeftAction(MyGame g) {
+    public PauseToggleAction(MyGame g) {
         game = g;
     }
 
     @Override
     public void performAction(float time, Event e) {
-        float val = e.getValue();
-
-        if(val > 0.2f)
-            game.setTurnLeft(true);
-        else
-            game.setTurnLeft(false);
+        game.pauseGame();
     }
 }

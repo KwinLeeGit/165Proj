@@ -30,6 +30,7 @@ public class MyGame extends VariableFrameRateGame
 	private boolean pic1 = false;
 	private boolean pic2 = false;
 	private boolean pic3 = false;
+	private boolean moveForward, moveBackward, turnLeft, turnRight;
 	private String gameState = "play";
 	private int counter=0;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
@@ -192,22 +193,22 @@ public class MyGame extends VariableFrameRateGame
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.W, fwdAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.S, bkwdAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.A, turnLeftAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.D, turnRightAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
 
 		im.associateActionWithAllKeyboards(
@@ -220,50 +221,59 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void update()
 	{	// rotate dolphin if not paused
+		im.update((float)elapsTime);
 		lastFrameTime = currFrameTime;
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
+
+		float moveSpeed = (float)(frameTime * 0.01);
+		float turnSpeed = (float)(frameTime * 0.002);
+
 		if (!paused) elapsTime += (frameTime) / 1000.0;
-		//dol.setLocalRotation((new Matrix4f()).rotation((float)elapsTime, 0, 1, 0));
 		if (riding) {
-			cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
-				fwd = dol.getWorldForwardVector();
-				loc = dol.getWorldLocation();
-				up = dol.getWorldUpVector();
-				right = dol.getWorldRightVector();
-				cam.setU(right);
-				cam.setV(up);
-				cam.setN(fwd);
-				Vector3f camLoc = new Vector3f(loc).add(new Vector3f(right).mul(0.5f)).add(new Vector3f(up).mul(1.3f))
-				.add(new Vector3f(fwd).mul(-2.5f));
-				cam.setLocation(camLoc);
+
+			if (moveForward) {
+				Vector3f fwd = dol.getWorldForwardVector();
+				Vector3f loc = dol.getWorldLocation();
+				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(moveSpeed)));
+			}
+
+    		if (moveBackward) {
+				Vector3f fwd = dol.getWorldForwardVector();
+				Vector3f loc = dol.getWorldLocation();
+				dol.setLocalLocation(loc.add(new Vector3f(fwd).mul(-moveSpeed)));
+			}
+
+			if (turnLeft) {
+				Matrix4f rot = dol.getWorldRotation();
+				dol.setLocalRotation(rot.rotate(turnSpeed, 0, 1, 0));
+			}
+
+			if (turnRight) {
+				Matrix4f rot = dol.getWorldRotation();
+				dol.setLocalRotation(rot.rotate(-turnSpeed, 0, 1, 0));
+			}
+			updateRidingCamera();
 		}
 
-		if (!riding) {
-			cam = engine.getRenderSystem().getViewport("MAIN").getCamera();
+		else {
 
-			//Calculate forward vector from yaw + pitch
-			Vector3f forward = new Vector3f(
-				(float)(Math.cos(pitchAngle) * Math.sin(yawAngle)),
-				(float)(Math.sin(pitchAngle)),
-				(float)(Math.cos(pitchAngle) * Math.cos(yawAngle))
-			);
+			Vector3f camLoc = cam.getLocation();
 
-			forward.normalize();
+			if (moveForward)
+				camLoc.add(new Vector3f(fwd).mul(moveSpeed));
 
-			//Calculate right vector
-			Vector3f worldUp = new Vector3f(0, 1, 0);
-			Vector3f right = new Vector3f();
-			forward.cross(worldUp, right).normalize();
+			if (moveBackward)
+				camLoc.add(new Vector3f(fwd).mul(-moveSpeed));
 
-			//Calculate true up vector
-			Vector3f up = new Vector3f();
-			right.cross(forward, up).normalize();
+			if (turnLeft)
+				camLoc.add(new Vector3f(right).mul(-moveSpeed));
 
-			//Apply to camera
-			cam.setN(forward);
-			cam.setU(right);
-			cam.setV(up);
+			if (turnRight)
+				camLoc.add(new Vector3f(right).mul(moveSpeed));
+
+    		cam.setLocation(camLoc);
+			updateFreeCamera();
 		}
 
 		if (!mouseInitiated) initMouseMode();
@@ -319,76 +329,67 @@ public class MyGame extends VariableFrameRateGame
 		(engine.getHUDmanager()).setHUD1(dispStr1, hud1Color, 15, 15);
 		(engine.getHUDmanager()).setHUD2(dispStr2, hud2Color, 500, 15);
 
-		im.update((float)elapsTime);
+		
 	}
 
 	public GameObject getAvatar() {return dol;}
 
 	public void toggleCameraMode() {
 		riding = !riding;
-
-		Camera cam = engine.getRenderSystem().getViewport("MAIN").getCamera();
-
-		if (!riding) {
-			cam.setLocation(new Vector3f(0,2,5));
-		}
-
-		else {	
-			// snap back to dolphin (optional)
-			Vector3f loc = dol.getWorldLocation();
-			Vector3f up = dol.getWorldUpVector();
-			Vector3f fwd = dol.getWorldForwardVector();
-
-			Vector3f camLoc = new Vector3f(loc)
-				.add(new Vector3f(up).mul(1.3f))
-				.add(new Vector3f(fwd).mul(-2.5f));
-
-			cam.setLocation(camLoc);
-    	}
 	}
 
-	@Override
-	public void keyPressed(KeyEvent e)
-	{	
-		
-		switch (e.getKeyCode())
-		{	case KeyEvent.VK_P:
-				tryPic();
-				break;
-			case KeyEvent.VK_1:
-				paused = !paused;
-				break;
-			/*case KeyEvent.VK_UP:
-				pit = dol.getLocalRotation();
-				dol.setLocalRotation((rot.rotate(-0.05f, 1, 0, 0)));
-				break;
-			case KeyEvent.VK_DOWN:
-				pit = dol.getLocalRotation();
-				dol.setLocalRotation((rot.rotate(0.05f, 1, 0, 0)));
-				break;*/
-			case KeyEvent.VK_H:
-				if(riding == false) {
-					cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
-					fwd = dol.getWorldForwardVector();
-					loc = dol.getWorldLocation();
-					up = dol.getWorldUpVector();
-					right = dol.getWorldRightVector();
-					cam.setU(right);
-					cam.setV(up);
-					cam.setN(fwd);
-					cam.setLocation(loc.add(up.mul(1.3f)).add(fwd.mul(-2.5f).add(right.mul(-2f))));
-				}
-				break;
-			case KeyEvent.VK_5:
-				riding=false;
-				(engine.getRenderSystem().getViewport("MAIN").getCamera()).setLocation(new Vector3f(0,0,5));
-				break;
-			case KeyEvent.VK_6:
-				riding=true;
-				break;
-		}
-		super.keyPressed(e);
+	private void updateRidingCamera() {
+
+		cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
+
+		fwd = dol.getWorldForwardVector();
+		loc = dol.getWorldLocation();
+		up = dol.getWorldUpVector();
+		right = dol.getWorldRightVector();
+		cam.setU(right);
+		cam.setV(up);
+		cam.setN(fwd);
+		Vector3f camLoc = new Vector3f(loc).add(new Vector3f(up).mul(1.3f))
+		.add(new Vector3f(fwd).mul(-2.5f));
+
+		cam.setLocation(camLoc);
 	}
+
+	private void updateFreeCamera() {
+		cam = engine.getRenderSystem().getViewport("MAIN").getCamera();
+
+		//Calculate forward vector from yaw + pitch
+		Vector3f forward = new Vector3f(
+			(float)(Math.cos(pitchAngle) * Math.sin(yawAngle)),
+			(float)(Math.sin(pitchAngle)),
+			(float)(Math.cos(pitchAngle) * Math.cos(yawAngle))
+		);
+
+		forward.normalize();
+
+		//Calculate right vector
+		Vector3f worldUp = new Vector3f(0, 1, 0);
+		Vector3f right = new Vector3f();
+		forward.cross(worldUp, right).normalize();
+
+		//Calculate true up vector
+		Vector3f up = new Vector3f();
+		right.cross(forward, up).normalize();
+
+		//Apply to camera
+		cam.setN(forward);
+		cam.setU(right);
+		cam.setV(up);
+
+		this.fwd = forward;
+		this.right = right;
+		this.up = up;
+	}
+
+	public void setMoveForward(boolean val) { moveForward = val; }
+	public void setMoveBackward(boolean val) { moveBackward = val; }
+	public void setTurnLeft(boolean val) { turnLeft = val; }
+	public void setTurnRight(boolean val) { turnRight = val; }
 
 	@Override
 	public void mouseMoved(MouseEvent e)
@@ -417,7 +418,12 @@ public class MyGame extends VariableFrameRateGame
 		prevMouseX = centerX; // reset prev to center
 		prevMouseY = centerY;
 		}
-		} }
+		} 
+	}
+
+	public void pauseGame() {
+		paused = !paused;
+	}
 
 	public void tryPic(){
 

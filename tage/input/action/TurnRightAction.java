@@ -12,9 +12,6 @@ import a2.MyGame;
 
 public class TurnRightAction extends AbstractInputAction {
     private MyGame game;
-    private GameObject av;
-    private Vector4f turnRightDirection;
-    private float moveSpeed;
 
     public TurnRightAction(MyGame g) {
         game = g;
@@ -22,9 +19,11 @@ public class TurnRightAction extends AbstractInputAction {
 
     @Override
     public void performAction(float time, Event e) {
-        av = game.getAvatar();
-        moveSpeed = (float)(time * 0.01);
-        Matrix4f rot = av.getWorldRotation();
-        av.setLocalRotation(rot.rotate(-moveSpeed,0,1,0));
+        float val = e.getValue();
+
+        if(val > 0.2f)
+            game.setTurnRight(true);
+        else
+            game.setTurnRight(false);
     }
 }

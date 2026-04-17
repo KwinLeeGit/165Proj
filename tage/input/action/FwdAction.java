@@ -11,10 +11,6 @@ import a2.MyGame;
 
 public class FwdAction extends AbstractInputAction {
     private MyGame game;
-    private GameObject av;
-    private Vector3f oldPosition, newPosition;
-    private Vector4f fwdDirection;
-    private float moveSpeed;
 
     public FwdAction(MyGame g) {
         game = g;
@@ -22,13 +18,11 @@ public class FwdAction extends AbstractInputAction {
 
     @Override
     public void performAction(float time, Event e) {
-        av = game.getAvatar();
-        moveSpeed = (float)(time * 0.1);
-        oldPosition = av.getWorldLocation();
-        fwdDirection = new Vector4f(0f,0f,1f,1f);
-        fwdDirection.mul(av.getWorldRotation());
-        fwdDirection.mul(moveSpeed);
-        newPosition = oldPosition.add(fwdDirection.x(),fwdDirection.y(),fwdDirection.z());
-        av.setLocalLocation(newPosition);
+        float val = e.getValue();
+
+        if(val > 0.2f)
+            game.setMoveForward(true);
+        else
+            game.setMoveForward(false);
     }
 }
