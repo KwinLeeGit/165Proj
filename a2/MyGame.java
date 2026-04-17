@@ -8,11 +8,18 @@ import tage.physics.PhysicsObject;
 import tage.rml.Vector3;
 import tage.input.*;
 import tage.input.action.*;
+import tage.networking.IGameConnection.ProtocolType;
+import tage.networking.client.*;
 
 import java.lang.Math;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.util.*;
+import java.util.UUID;
+import java.net.InetAddress;
+
+import java.net.UnknownHostException;
 import javax.swing.*;
 import org.joml.*;
 import net.java.games.input.*;
@@ -23,13 +30,10 @@ public class MyGame extends VariableFrameRateGame
 {
 	private static Engine engine;
 	private InputManager im;
+	private GhostManager gm;
 	private boolean mouseInitiated = false;
 	private boolean paused=false;
 	private boolean riding=true;
-	private boolean prox = false;
-	private boolean pic1 = false;
-	private boolean pic2 = false;
-	private boolean pic3 = false;
 	private boolean moveForward, moveBackward, turnLeft, turnRight;
 	private String gameState = "play";
 	private int counter=0;
@@ -37,10 +41,15 @@ public class MyGame extends VariableFrameRateGame
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
 	private GameObject avatar, xAxis, yAxis, zAxis, floor;
-	private ObjShape avatarS, xAxisS, yAxisS, zAxisS, floorS;
-	private TextureImage avatartx, floortx, boundaries;
+	private ObjShape avatarS, ghostS, xAxisS, yAxisS, zAxisS, floorS;
+	private TextureImage avatartx, floortx, boundaries, ghosttx;
 	private Light light1, light2, light3, light4;
 	private PhysicsObject avatarPhy;
+	private String serverAddress;
+	private int serverPort;
+	private ProtocolType serverProtocol;
+	private ProtocolClient protClient;
+	private boolean isClientConnected = false;
 	private float avatarRadius = 3.0f;
 	private float yawAngle = 0.0f;
 	private float pitchAngle = 0.0f;
@@ -54,10 +63,20 @@ public class MyGame extends VariableFrameRateGame
 	float turn = 0, pitch = 0;
 	Camera cam;
 
-	public MyGame() { super(); }
+	public MyGame(String serverAddress, int serverPort, String protocol) { 
+		super();
+		gm = new GhostManager(this);
+		this.serverAddress = serverAddress;
+		this.serverPort = serverPort;
+		if (protocol.toUpperCase().compareTo("TCP") == 0)
+			this.serverProtocol = ProtocolType.TCP;
+
+		else
+			this.serverProtocol = ProtocolType.UDP; 
+		}
 
 	public static void main(String[] args)
-	{	MyGame game = new MyGame();
+	{	MyGame game = new MyGame(args[0], Integer.parseInt(args[1]), args[2]);
 		engine = new Engine(game);
 		engine.initializeSystem();
 		game.buildGame();
@@ -67,6 +86,7 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadShapes()
 	{	avatarS = new ImportedModel("dolphinHighPoly.obj");
+		ghostS = new ImportedModel("dolphinHighPoly.obj");
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
@@ -76,6 +96,7 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadTextures()
 	{	avatartx = new TextureImage("Dolphin_HighPolyUV.jpg");
+		ghosttx = new TextureImage("redDolphin.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
 	}
@@ -88,7 +109,7 @@ public class MyGame extends VariableFrameRateGame
 
 		// build avatarphin in the center of the window
 		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
-		initialTranslation = (new Matrix4f()).translation(0,0,0);
+		initialTranslation = (new Matrix4f()).translation(0,1,0);
 		initialScale = (new Matrix4f()).scaling(3.0f);
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
@@ -139,6 +160,8 @@ public class MyGame extends VariableFrameRateGame
 
 		//Input Section
 		initInputs();
+
+		setupNetworking();
 		
 	}
 
@@ -251,10 +274,8 @@ public class MyGame extends VariableFrameRateGame
 
 		// build and set HUD
 		String counterStr = Integer.toString(counter);
-		String dispStr1 = "Distance: Too Far";
-		if (prox == true){
-			dispStr1 = "Distance: Close Enough";
-		}
+		String elapsTimeStr = Integer.toString((int)elapsTime);
+		String dispStr1 = "Time = " + elapsTimeStr;
 		String dispStr2 = "Score = " + counterStr;
 		if (gameState.equals("lose")){
 			dispStr1 = "Game Over!";
@@ -266,6 +287,14 @@ public class MyGame extends VariableFrameRateGame
 		Vector3f hud2Color = new Vector3f(0,0,1);
 		(engine.getHUDmanager()).setHUD1(dispStr1, hud1Color, 15, 15);
 		(engine.getHUDmanager()).setHUD2(dispStr2, hud2Color, 500, 15);
+
+		processNetworking((float)elapsTime);
+
+		if ((moveForward || moveBackward || turnLeft || turnRight)
+		&& protClient != null && isClientConnected) {
+			protClient.sendMoveMessage(avatar.getWorldLocation());
+		}
+		
 
 		
 	}
@@ -424,5 +453,48 @@ public class MyGame extends VariableFrameRateGame
 	{ 
 		float sensitivity = 0.002f;
 		yawAngle += mouseDeltaX * sensitivity;
+	}
+
+	public ObjShape getGhostShape() {return ghostS;}
+	public TextureImage getGhostTexture() {return ghosttx;}
+	public GhostManager getGhostManager() {return gm;}
+	public Engine getEngine () {return engine;}
+
+	private void setupNetworking()
+	{	isClientConnected = false;	
+		try 
+		{	protClient = new ProtocolClient(InetAddress.getByName(serverAddress), serverPort, serverProtocol, this);
+		} 	catch (UnknownHostException e) 
+		{	e.printStackTrace();
+		}	catch (IOException e) 
+		{	e.printStackTrace();
+		}
+		if (protClient == null)
+		{	System.out.println("missing protocol host");
+		}
+		else
+		{	// Send the initial join message with a unique identifier for this client
+			System.out.println("sending join message to protocol host");
+			protClient.sendJoinMessage();
+		}
+	}
+
+	protected void processNetworking(float elapsTime)
+	{	// Process packets received by the client from the server
+		if (protClient != null)
+			protClient.processPackets();
+	}
+
+	public Vector3f getPlayerPosition() { return avatar.getWorldLocation(); }
+
+	public void setIsConnected(boolean value) { this.isClientConnected = value; }
+	
+	private class SendCloseConnectionPacketAction extends AbstractInputAction
+	{	@Override
+		public void performAction(float time, net.java.games.input.Event evt) 
+		{	if(protClient != null && isClientConnected == true)
+			{	protClient.sendByeMessage();
+			}
+		}
 	}
 }
