@@ -195,7 +195,7 @@ public class MyGame extends VariableFrameRateGame
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
 
-		float moveSpeed = (float)(frameTime * 0.01);
+		float moveSpeed = (float)(frameTime * 0.04);
 		float turnSpeed = (float)(frameTime * 0.002);
 
 		if (!paused) elapsTime += (frameTime) / 1000.0;
@@ -295,7 +295,7 @@ public class MyGame extends VariableFrameRateGame
 		cam.setV(up);
 		cam.setN(fwd);
 		Vector3f camLoc = new Vector3f(loc).add(new Vector3f(up).mul(1.3f))
-		.add(new Vector3f(fwd).mul(-2.5f));
+		.add(new Vector3f(fwd).mul(-4.5f));
 
 		cam.setLocation(camLoc);
 	}
