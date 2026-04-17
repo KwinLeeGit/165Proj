@@ -5,6 +5,7 @@ import tage.shapes.*;
 import tage.nodeControllers.RotationController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
+import tage.rml.Vector3;
 import tage.input.*;
 import tage.input.action.*;
 
@@ -180,6 +181,42 @@ public class MyGame extends VariableFrameRateGame
 		
 	}
 
+	private void initInputs() {
+		im = engine.getInputManager();
+
+		FwdAction fwdAction = new FwdAction(this);
+		BkwdAction bkwdAction = new BkwdAction(this);
+		TurnLeftAction turnLeftAction = new TurnLeftAction(this);
+		TurnRightAction turnRightAction = new TurnRightAction(this);
+		CamToggleAction camToggleAction = new CamToggleAction(this);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.W, fwdAction,
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.S, bkwdAction,
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.A, turnLeftAction,
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.D, turnRightAction,
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.SPACE, camToggleAction,
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY
+		);
+
+	}
+
 	@Override
 	public void update()
 	{	// rotate dolphin if not paused
@@ -287,6 +324,29 @@ public class MyGame extends VariableFrameRateGame
 
 	public GameObject getAvatar() {return dol;}
 
+	public void toggleCameraMode() {
+		riding = !riding;
+
+		Camera cam = engine.getRenderSystem().getViewport("MAIN").getCamera();
+
+		if (!riding) {
+			cam.setLocation(new Vector3f(0,2,5));
+		}
+
+		else {	
+			// snap back to dolphin (optional)
+			Vector3f loc = dol.getWorldLocation();
+			Vector3f up = dol.getWorldUpVector();
+			Vector3f fwd = dol.getWorldForwardVector();
+
+			Vector3f camLoc = new Vector3f(loc)
+				.add(new Vector3f(up).mul(1.3f))
+				.add(new Vector3f(fwd).mul(-2.5f));
+
+			cam.setLocation(camLoc);
+    	}
+	}
+
 	@Override
 	public void keyPressed(KeyEvent e)
 	{	
@@ -298,51 +358,6 @@ public class MyGame extends VariableFrameRateGame
 			case KeyEvent.VK_1:
 				paused = !paused;
 				break;
-			case KeyEvent.VK_H:
-				if (riding) {
-					fwd = dol.getWorldForwardVector();
-					loc = dol.getWorldLocation();
-					newLocation = loc.add(fwd.mul(.05f));
-					dol.setLocalLocation(newLocation);
-					break;
-				}
-
-				Vector3f camLoc = cam.getLocation()
-				.add(new Vector3f(fwd).mul(2.5f));
-				cam.setLocation(camLoc);
-				break;
-			case KeyEvent.VK_S:
-				if (riding) {
-					fwd = dol.getWorldForwardVector();
-					loc = dol.getWorldLocation();
-					newLocation = loc.add(fwd.mul(-.05f));
-					dol.setLocalLocation(newLocation);
-					break;
-				}
-
-				camLoc = new Vector3f(loc)
-				.add(new Vector3f(fwd).mul(-2.5f));
-				cam.setLocation(camLoc);
-				break;
-			case KeyEvent.VK_A:
-				if (riding) {
-					rot = dol.getWorldRotation();
-					dol.setLocalRotation((rot.rotate(0.05f, 0, 1, 0)));
-					break;
-				}
-				
-				camLoc = new Vector3f(loc).add(new Vector3f(right).mul(2.5f));
-				cam.setLocation(camLoc);
-				break;
-			case KeyEvent.VK_D:
-				if(riding) {
-					rot = dol.getWorldRotation();
-					dol.setLocalRotation((rot.rotate(-0.05f, 0, 1, 0)));
-					break;
-				}
-				camLoc = new Vector3f(loc).add(new Vector3f(right).mul(-2.5f));
-				cam.setLocation(camLoc);
-				break;
 			/*case KeyEvent.VK_UP:
 				pit = dol.getLocalRotation();
 				dol.setLocalRotation((rot.rotate(-0.05f, 1, 0, 0)));
@@ -351,7 +366,7 @@ public class MyGame extends VariableFrameRateGame
 				pit = dol.getLocalRotation();
 				dol.setLocalRotation((rot.rotate(0.05f, 1, 0, 0)));
 				break;*/
-			case KeyEvent.VK_SPACE:
+			case KeyEvent.VK_H:
 				if(riding == false) {
 					cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
 					fwd = dol.getWorldForwardVector();
@@ -480,35 +495,5 @@ public class MyGame extends VariableFrameRateGame
 	{ 
 		float sensitivity = 0.002f;
 		yawAngle += mouseDeltaX * sensitivity;
-	}
-
-	private void initInputs() {
-		im = engine.getInputManager();
-
-		FwdAction fwdAction = new FwdAction(this);
-		/*BkwdAction bkwdAction = new BkwdAction(this);
-		TurnLeftAction turnLeftAction = new TurnLeftAction(this);
-		TurnRightAction turnRightAction = new TurnRightAction(this);*/
-
-		im.associateActionWithAllKeyboards(
-			net.java.games.input.Component.Identifier.Key.W, fwdAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
-		);
-
-		/*im.associateActionWithAllKeyboards(
-			net.java.games.input.Component.Identifier.Key.S, bkwdAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
-		);
-
-		im.associateActionWithAllKeyboards(
-			net.java.games.input.Component.Identifier.Key.A, turnLeftAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
-		);
-
-		im.associateActionWithAllKeyboards(
-			net.java.games.input.Component.Identifier.Key.D, turnRightAction,
-			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
-		);*/
-
 	}
 }

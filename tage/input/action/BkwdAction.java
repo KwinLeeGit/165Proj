@@ -9,14 +9,14 @@ import org.joml.*;
 
 import a2.MyGame;
 
-public class FwdAction extends AbstractInputAction {
+public class BkwdAction extends AbstractInputAction {
     private MyGame game;
     private GameObject av;
     private Vector3f oldPosition, newPosition;
-    private Vector4f fwdDirection;
+    private Vector4f bkwdDirection;
     private float moveSpeed;
 
-    public FwdAction(MyGame g) {
+    public BkwdAction(MyGame g) {
         game = g;
     }
 
@@ -25,10 +25,10 @@ public class FwdAction extends AbstractInputAction {
         av = game.getAvatar();
         moveSpeed = (float)(time * 0.1);
         oldPosition = av.getWorldLocation();
-        fwdDirection = new Vector4f(0f,0f,1f,1f);
-        fwdDirection.mul(av.getWorldRotation());
-        fwdDirection.mul(moveSpeed);
-        newPosition = oldPosition.add(fwdDirection.x(),fwdDirection.y(),fwdDirection.z());
+        bkwdDirection = new Vector4f(0f,0f,-1f,1f);
+        bkwdDirection.mul(av.getWorldRotation());
+        bkwdDirection.mul(moveSpeed);
+        newPosition = oldPosition.add(bkwdDirection.x(),bkwdDirection.y(),bkwdDirection.z());
         av.setLocalLocation(newPosition);
     }
 }
