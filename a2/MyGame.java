@@ -118,13 +118,13 @@ public class MyGame extends VariableFrameRateGame
 
 		// build avatarphin in the center of the window
 		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
-		initialTranslation = (new Matrix4f()).translation(0,0,0);
+		initialTranslation = (new Matrix4f()).translation(0,3,0);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
 
 		npc = new GameObject(GameObject.root(), npcS, npctx);
-		initialTranslation = (new Matrix4f()).translation(1,1,1);
+		initialTranslation = (new Matrix4f()).translation(1,3,1);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		npc.setLocalTranslation(initialTranslation);
 		npc.setLocalScale(initialScale);
@@ -341,20 +341,20 @@ public class MyGame extends VariableFrameRateGame
 		float mass = 1f;
 		float up[] = {0,1,0};
 		float radius = .75f;
-		float height = 2f;
+		float size[] = {2,2,5};
 		Vector3f loc;
 		Quaternionf rot;
 
 		loc = avatar.getWorldLocation(); rot = new Quaternionf();
 		(avatar.getWorldRotation()).getNormalizedRotation(rot);
-		avatarP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, 0, radius, height);
+		avatarP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
 		avatarP.setBounciness(.8f);
 		avatarP.disableSleeping();
 		avatar.setPhysicsObject(avatarP);
 
 		loc = npc.getWorldLocation(); rot = new Quaternionf();
 		(npc.getWorldRotation()).getNormalizedRotation(rot);
-		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, 0, radius, height);
+		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
 		npcP.setBounciness(.8f);
 		npcP.disableSleeping();
 		npc.setPhysicsObject(npcP);
