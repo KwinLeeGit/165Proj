@@ -5,7 +5,6 @@ import tage.shapes.*;
 import tage.nodeControllers.RotationController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
-
 import tage.input.*;
 import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
@@ -48,6 +47,11 @@ public class MyGame extends VariableFrameRateGame
 	private Light light1, light2, light3, light4;
 	private PhysicsObject avatarP, npcP, floorP;
 	private PhysicsEngine physicsEngine;
+	private float currentSpeed = 0;
+	private float accel = 5f;
+	private float maxSpeed = 20f;
+	private float drag = 2f;
+	private float adj;
 
 
 	private String serverAddress;
@@ -56,6 +60,7 @@ public class MyGame extends VariableFrameRateGame
 	private ProtocolClient protClient;
 	private boolean isClientConnected = false;
 	private float avatarRadius = 3.0f;
+	private float yaw;
 	private float yawAngle = 0.0f;
 	private float pitchAngle = 0.0f;
 	private Robot robot;
@@ -234,21 +239,25 @@ public class MyGame extends VariableFrameRateGame
 		lastFrameTime = currFrameTime;
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
+		adj = (float)(frameTime/1000.0);
 
-		float moveSpeed = (float)(frameTime * 0.5f);
 		float camSpeed = (float)(frameTime * 0.005f);
-		float turnSpeed = (float)(frameTime * 0.3f);
+		float moveSpeed = (float)(frameTime * 3f);
+		float turnSpeed = (float)(frameTime * 2f);
+		adj = (float)(frameTime/1000.0);
+
+		Vector3f fwd = avatar.getWorldForwardVector();
 
 		if (!paused) elapsTime += (frameTime) / 1000.0;
 		if (riding) {
 
 			if (moveForward) {
-				Vector3f fwd = avatar.getWorldForwardVector();
+
 				avatarP.applyForce(fwd.x() * moveSpeed, 0, fwd.z() * moveSpeed, 0, 0, 0);
 			}
 
     		if (moveBackward) {
-				Vector3f fwd = avatar.getWorldForwardVector();
+
 				avatarP.applyForce(-fwd.x() * moveSpeed, 0, -fwd.z() * moveSpeed, 0, 0, 0);
 			}
 
@@ -259,8 +268,11 @@ public class MyGame extends VariableFrameRateGame
 			if (turnRight) {
 				avatarP.applyTorque(0, -turnSpeed, 0);
 			}
+
+
 			avatarS.updateAnimation();
 			updateRidingCamera();
+			
 		}
 
 		else {
@@ -332,7 +344,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void initializePhysicsObjects() {
-		float[] gravity = {0f, -5f, 0f};
+		float[] gravity = {0f, -8f, 0f};
 		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
 		physicsEngine.setGravity(gravity);
 
@@ -346,21 +358,25 @@ public class MyGame extends VariableFrameRateGame
 		loc = avatar.getWorldLocation(); rot = new Quaternionf();
 		(avatar.getWorldRotation()).getNormalizedRotation(rot);
 		avatarP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		avatarP.setBounciness(.1f);
+		avatarP.setFriction(.5f);
 		avatarP.disableSleeping();
+		avatarP.setDamping(.6f, .8f);
+		avatarP.setBounciness(0);
+		avatarP.setAngularFactor(up);
 		avatar.setPhysicsObject(avatarP);
 
 		loc = npc.getWorldLocation(); rot = new Quaternionf();
 		(npc.getWorldRotation()).getNormalizedRotation(rot);
 		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		npcP.setBounciness(.1f);
+		npcP.setFriction(1f);
 		npcP.disableSleeping();
 		npc.setPhysicsObject(npcP);
 
 		loc = floor.getWorldLocation(); rot = new Quaternionf();
 		(floor.getWorldRotation()).getNormalizedRotation(rot);
 		floorP = (engine.getSceneGraph()).addPhysicsStaticTerrainMesh(loc, rot, boundaries, 100f, 5f, 100);
-		floorP.setBounciness(1f);
+		floorP.setFriction(.5f);
+		floorP.setBounciness(0);
 		floorP.disableSleeping();
 		floor.setPhysicsObject(floorP);
 		

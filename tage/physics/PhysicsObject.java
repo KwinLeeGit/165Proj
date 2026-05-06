@@ -9,6 +9,7 @@ import org.joml.Vector4f;
 
 import tage.GameObject;
 import tage.Utils;
+import tage.rml.Vector3;
 
 import com.jme3.math.Matrix4f;
 import com.jme3.math.Vector3f;
@@ -265,8 +266,7 @@ public abstract class PhysicsObject
 	* <br>
 	* The vector is the desired angular factor for each axis (default = 1,1,1)
 	*/
-	public void setAngularFactor(float f) { body.setAngularFactor(0f); }
-
+	public void setAngularFactor(float[] f) { body.setAngularFactor(new Vector3f(f[0], f[1], f[2])); }
 	/** Get the number of manifolds in the collision manifold list */
 	public int getManifoldCount() { return manifoldList.size(); }
 	
