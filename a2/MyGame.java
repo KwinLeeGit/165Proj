@@ -6,10 +6,7 @@ import tage.nodeControllers.RotationController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
 import tage.rml.Matrix4;
-import tage.rml.Matrix4f;
-import tage.rml.Quaternionf;
 import tage.rml.Vector3;
-import tage.rml.Vector3f;
 import tage.input.*;
 import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
@@ -123,8 +120,8 @@ public class MyGame extends VariableFrameRateGame
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
-		avatarPhy = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
-		avatar.setPhysicsObject(avatarPhy);
+		avatarP = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
+		avatar.setPhysicsObject(avatarP);
 
 		npc = new GameObject(GameObject.root(), npcS, npctx);
 		initialTranslation = (new Matrix4f()).translation(1,1,1);
@@ -302,8 +299,7 @@ public class MyGame extends VariableFrameRateGame
 				rot.get(rotMat);
 				go.setLocalRotation(rotMat);
 					
-				};
-			}
+			};
 		}
 
 		if (!mouseInitiated) initMouseMode();
@@ -333,6 +329,42 @@ public class MyGame extends VariableFrameRateGame
 		
 
 		
+	}
+
+	public void initializePhysicsObjects() {
+		float[] gravity = {0f, -5f, 0f};
+		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
+		physicsEngine.setGravity(gravity);
+
+		float mass = 1f;
+		float up[] = {0,1,0};
+		float radius = .75f;
+		float height = 2f;
+		Vector3f loc;
+		Quaternionf rot;
+
+		loc = avatar.getWorldLocation(); rot = new Quaternionf();
+		(avatar.getWorldRotation()).getNormalizedRotation(rot);
+		avatarP = (engine.getSceneGraph()).addPhysicsCapsule(mass, loc, rot, 0, radius, height);
+		avatarP.setBounciness(.8f);
+		avatarP.disableSleeping();
+		avatar.setPhysicsObject(avatarP);
+
+		loc = npc.getWorldLocation(); rot = new Quaternionf();
+		(npc.getWorldRotation()).getNormalizedRotation(rot);
+		npcP = (engine.getSceneGraph()).addPhysicsCapsule(mass, loc, rot, 0, radius, height);
+		npcP.setBounciness(.8f);
+		npcP.disableSleeping();
+		npc.setPhysicsObject(npcP);
+
+		loc = floor.getWorldLocation(); rot = new Quaternionf();
+		(floor.getWorldRotation()).getNormalizedRotation(rot);
+		floorP = (engine.getSceneGraph()).addPhysicsStaticPlane(loc, rot, up, 0.0f);
+		floorP.setBounciness(1f);
+		floor.setPhysicsObject(floorP);
+		
+		engine.enableGraphicsWorldRender();
+		engine.enablePhysicsWorldRender();
 	}
 
 	public GameObject getAvatar() {return avatar;}
