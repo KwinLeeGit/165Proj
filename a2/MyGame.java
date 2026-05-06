@@ -157,7 +157,7 @@ public class MyGame extends VariableFrameRateGame
 		avatar.setLocalScale(initialScale);
 
 		npc = new GameObject(GameObject.root(), npcS, npctx);
-		initialTranslation = (new Matrix4f()).translation(5,5,5);
+		initialTranslation = (new Matrix4f()).translation(10,5,10);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		npc.setLocalTranslation(initialTranslation);
 		npc.setLocalScale(initialScale);
@@ -329,6 +329,24 @@ public class MyGame extends VariableFrameRateGame
 
     		cam.setLocation(camLoc);
 			updateFreeCamera();
+		}
+
+		Vector3f toPlayer = new Vector3f(avatar.getWorldLocation())
+		.sub(npc.getWorldLocation());
+
+		float distance = toPlayer.length();
+
+		if (distance > 5f) {
+			toPlayer.normalize();
+
+			// Turn toward player
+			Vector3f npcForward = npc.getWorldForwardVector();
+			float turn = npcForward.cross(toPlayer).y;
+
+			npcP.applyTorque(0, turn * 5f, 0);
+
+			// Move forward
+			npcP.applyForce(npcForward.x() * 10f, 0, npcForward.z() * 10f, 0, 0, 0);
 		}
 
 		physicsEngine.update((float)frameTime/1000f);
