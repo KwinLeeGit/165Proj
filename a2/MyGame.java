@@ -5,6 +5,7 @@ import tage.shapes.*;
 import tage.nodeControllers.RotationController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
+
 import tage.input.*;
 import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
@@ -33,6 +34,7 @@ public class MyGame extends VariableFrameRateGame
 	private boolean mouseInitiated = false;
 	private boolean paused=false;
 	private boolean riding=true;
+	private boolean initPhys = false;
 	private boolean moveForward, moveBackward, turnLeft, turnRight;
 	private String gameState = "play";
 	private int counter=0;
@@ -118,13 +120,13 @@ public class MyGame extends VariableFrameRateGame
 
 		// build avatarphin in the center of the window
 		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
-		initialTranslation = (new Matrix4f()).translation(0,3,0);
+		initialTranslation = (new Matrix4f()).translation(0,5,0);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
 
 		npc = new GameObject(GameObject.root(), npcS, npctx);
-		initialTranslation = (new Matrix4f()).translation(1,3,1);
+		initialTranslation = (new Matrix4f()).translation(0,5,0);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		npc.setLocalTranslation(initialTranslation);
 		npc.setLocalScale(initialScale);
@@ -176,7 +178,7 @@ public class MyGame extends VariableFrameRateGame
 
 		setupNetworking();
 
-		initializePhysicsObjects();
+		
 		
 	}
 
@@ -233,34 +235,29 @@ public class MyGame extends VariableFrameRateGame
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
 
-		float moveSpeed = (float)(frameTime * 0.06);
-		float turnSpeed = (float)(frameTime * 0.002);
+		float moveSpeed = (float)(frameTime * 0.5f);
+		float camSpeed = (float)(frameTime * 0.005f);
+		float turnSpeed = (float)(frameTime * 0.3f);
 
 		if (!paused) elapsTime += (frameTime) / 1000.0;
 		if (riding) {
 
 			if (moveForward) {
 				Vector3f fwd = avatar.getWorldForwardVector();
-				Vector3f loc = avatar.getWorldLocation();
-				avatar.setLocalLocation(loc.add(new Vector3f(fwd).mul(moveSpeed)));
-				heightAdjust();
+				avatarP.applyForce(fwd.x() * moveSpeed, 0, fwd.z() * moveSpeed, 0, 0, 0);
 			}
 
     		if (moveBackward) {
 				Vector3f fwd = avatar.getWorldForwardVector();
-				Vector3f loc = avatar.getWorldLocation();
-				avatar.setLocalLocation(loc.add(new Vector3f(fwd).mul(-moveSpeed)));
-				heightAdjust();
+				avatarP.applyForce(-fwd.x() * moveSpeed, 0, -fwd.z() * moveSpeed, 0, 0, 0);
 			}
 
 			if (turnLeft) {
-				Matrix4f rot = avatar.getWorldRotation();
-				avatar.setLocalRotation(rot.rotate(turnSpeed, 0, 1, 0));
+				avatarP.applyTorque(0, turnSpeed, 0);
 			}
 
 			if (turnRight) {
-				Matrix4f rot = avatar.getWorldRotation();
-				avatar.setLocalRotation(rot.rotate(-turnSpeed, 0, 1, 0));
+				avatarP.applyTorque(0, -turnSpeed, 0);
 			}
 			avatarS.updateAnimation();
 			updateRidingCamera();
@@ -271,16 +268,16 @@ public class MyGame extends VariableFrameRateGame
 			Vector3f camLoc = cam.getLocation();
 
 			if (moveForward)
-				camLoc.add(new Vector3f(fwd).mul(moveSpeed));
+				camLoc.add(new Vector3f(fwd).mul(camSpeed));
 
 			if (moveBackward)
-				camLoc.add(new Vector3f(fwd).mul(-moveSpeed));
+				camLoc.add(new Vector3f(fwd).mul(-camSpeed));
 
 			if (turnLeft)
-				camLoc.add(new Vector3f(right).mul(-moveSpeed));
+				camLoc.add(new Vector3f(right).mul(-camSpeed));
 
 			if (turnRight)
-				camLoc.add(new Vector3f(right).mul(moveSpeed));
+				camLoc.add(new Vector3f(right).mul(camSpeed));
 
     		cam.setLocation(camLoc);
 			updateFreeCamera();
@@ -333,6 +330,7 @@ public class MyGame extends VariableFrameRateGame
 		
 	}
 
+	@Override
 	public void initializePhysicsObjects() {
 		float[] gravity = {0f, -5f, 0f};
 		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
@@ -348,21 +346,22 @@ public class MyGame extends VariableFrameRateGame
 		loc = avatar.getWorldLocation(); rot = new Quaternionf();
 		(avatar.getWorldRotation()).getNormalizedRotation(rot);
 		avatarP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		avatarP.setBounciness(.8f);
+		avatarP.setBounciness(.1f);
 		avatarP.disableSleeping();
 		avatar.setPhysicsObject(avatarP);
 
 		loc = npc.getWorldLocation(); rot = new Quaternionf();
 		(npc.getWorldRotation()).getNormalizedRotation(rot);
 		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		npcP.setBounciness(.8f);
+		npcP.setBounciness(.1f);
 		npcP.disableSleeping();
 		npc.setPhysicsObject(npcP);
 
 		loc = floor.getWorldLocation(); rot = new Quaternionf();
 		(floor.getWorldRotation()).getNormalizedRotation(rot);
-		floorP = (engine.getSceneGraph()).addPhysicsStaticPlane(loc, rot, up, 0.0f);
+		floorP = (engine.getSceneGraph()).addPhysicsStaticTerrainMesh(loc, rot, boundaries, 100f, 5f, 100);
 		floorP.setBounciness(1f);
+		floorP.disableSleeping();
 		floor.setPhysicsObject(floorP);
 		
 		engine.enableGraphicsWorldRender();
@@ -374,13 +373,6 @@ public class MyGame extends VariableFrameRateGame
 
 	public void toggleCameraMode() {
 		riding = !riding;
-	}
-
-	public void heightAdjust() {
-		Vector3f loc = avatar.getWorldLocation();
-		float height = floor.getHeight(loc.x(), loc.z());
-
-		avatar.setLocalLocation(new Vector3f(loc.x(), height, loc.z()));
 	}
 
 	private void updateRidingCamera() {
