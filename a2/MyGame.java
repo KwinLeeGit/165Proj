@@ -17,6 +17,7 @@ import java.io.*;
 import java.util.*;
 import java.util.UUID;
 import java.net.InetAddress;
+import tage.audio.*;
 
 import java.net.UnknownHostException;
 import javax.swing.*;
@@ -52,6 +53,8 @@ public class MyGame extends VariableFrameRateGame
 	private float maxSpeed = 20f;
 	private float drag = 2f;
 	private float adj;
+	private IAudioManager audioManager;
+	private Sound engSound, engSound2;
 
 
 	private String serverAddress;
@@ -101,7 +104,7 @@ public class MyGame extends VariableFrameRateGame
 		npcS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
 		npcS.loadAnimation("driveForward", "forward.rka");
 		npcS.loadAnimation("driveBackward", "backward.rka");
-		ghostS = new ImportedModel("dolphinHighPoly.obj");
+		ghostS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
@@ -112,9 +115,32 @@ public class MyGame extends VariableFrameRateGame
 	public void loadTextures()
 	{	avatartx = new TextureImage("BikeTxt.jpg");
 		npctx = new TextureImage("Bike2Txt.jpg");
-		ghosttx = new TextureImage("redDolphin.jpg");
+		ghosttx = new TextureImage("Bike3Txt.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
+	}
+
+	@Override
+	public void loadSounds() {
+		audioManager = engine.getAudioManager();
+
+		AudioResource engineRes = audioManager.createAudioResource("engine.wav", AudioResourceType.AUDIO_SAMPLE);
+		AudioResource engineRes2 = audioManager.createAudioResource("engine.wav", AudioResourceType.AUDIO_SAMPLE);
+
+
+		engSound = new Sound(engineRes, SoundType.SOUND_EFFECT, 0, true);
+		engSound2 = new Sound(engineRes2, SoundType.SOUND_EFFECT, 100, true);
+
+		engSound.initialize(audioManager);
+		engSound2.initialize(audioManager);
+
+		engSound.setMaxDistance(50f);
+		engSound.setMinDistance(0.5f);
+		engSound.setRollOff(5f);
+
+		engSound2.setMaxDistance(1000f);
+		engSound2.setMinDistance(5f);
+		engSound2.setRollOff(1f);
 	}
 
 	@Override
@@ -123,7 +149,7 @@ public class MyGame extends VariableFrameRateGame
 
 		SceneGraph sg = engine.getSceneGraph();
 
-		// build avatarphin in the center of the window
+		// build avatar in the center of the window
 		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
 		initialTranslation = (new Matrix4f()).translation(0,5,0);
 		initialScale = (new Matrix4f()).scaling(1.0f);
@@ -131,7 +157,7 @@ public class MyGame extends VariableFrameRateGame
 		avatar.setLocalScale(initialScale);
 
 		npc = new GameObject(GameObject.root(), npcS, npctx);
-		initialTranslation = (new Matrix4f()).translation(0,5,0);
+		initialTranslation = (new Matrix4f()).translation(5,5,5);
 		initialScale = (new Matrix4f()).scaling(1.0f);
 		npc.setLocalTranslation(initialTranslation);
 		npc.setLocalScale(initialScale);
@@ -183,7 +209,11 @@ public class MyGame extends VariableFrameRateGame
 
 		setupNetworking();
 
-		
+		engSound.setLocation(avatar.getWorldLocation());
+		engSound2.setLocation(npc.getWorldLocation());
+		setEarParameters();
+		//engSound.play();	
+		engSound2.play();	
 		
 	}
 
@@ -223,6 +253,12 @@ public class MyGame extends VariableFrameRateGame
 
 	}
 
+	public void setEarParameters()
+	{ Camera camera = (engine.getRenderSystem()).getViewport("MAIN").getCamera();
+		audioManager.getEar().setLocation(camera.getLocation());
+		audioManager.getEar().setOrientation(camera.getN(), new Vector3f(0.0f, 1.0f, 0.0f));
+	}
+
 	@Override
 	public void loadSkyBoxes() {
 
@@ -242,8 +278,8 @@ public class MyGame extends VariableFrameRateGame
 		adj = (float)(frameTime/1000.0);
 
 		float camSpeed = (float)(frameTime * 0.005f);
-		float moveSpeed = (float)(frameTime * 3f);
-		float turnSpeed = (float)(frameTime * 2f);
+		float moveSpeed = (float)(frameTime * 2.5f);
+		float turnSpeed = (float)(frameTime * 1f);
 		adj = (float)(frameTime/1000.0);
 
 		Vector3f fwd = avatar.getWorldForwardVector();
@@ -313,6 +349,10 @@ public class MyGame extends VariableFrameRateGame
 			};
 		}
 
+		//engSound.setLocation(avatar.getWorldLocation());
+		engSound2.setLocation(npc.getWorldLocation());
+		setEarParameters();
+
 		if (!mouseInitiated) initMouseMode();
 
 		// build and set HUD
@@ -344,7 +384,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void initializePhysicsObjects() {
-		float[] gravity = {0f, -8f, 0f};
+		float[] gravity = {0f, -15f, 0f};
 		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
 		physicsEngine.setGravity(gravity);
 
