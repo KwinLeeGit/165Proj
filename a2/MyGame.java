@@ -5,7 +5,11 @@ import tage.shapes.*;
 import tage.nodeControllers.RotationController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
+import tage.rml.Matrix4;
+import tage.rml.Matrix4f;
+import tage.rml.Quaternionf;
 import tage.rml.Vector3;
+import tage.rml.Vector3f;
 import tage.input.*;
 import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
@@ -40,11 +44,15 @@ public class MyGame extends VariableFrameRateGame
 	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
-	private GameObject avatar, xAxis, yAxis, zAxis, floor;
-	private ObjShape avatarS, ghostS, xAxisS, yAxisS, zAxisS, floorS;
-	private TextureImage avatartx, floortx, boundaries, ghosttx;
+	private GameObject avatar, npc, xAxis, yAxis, zAxis, floor;
+	private AnimatedShape avatarS, npcS;
+	private ObjShape ghostS, xAxisS, yAxisS, zAxisS, floorS;
+	private TextureImage avatartx, npctx, floortx, boundaries, ghosttx;
 	private Light light1, light2, light3, light4;
-	private PhysicsObject avatarPhy;
+	private PhysicsObject avatarP, npcP, floorP;
+	private PhysicsEngine physicsEngine;
+
+
 	private String serverAddress;
 	private int serverPort;
 	private ProtocolType serverProtocol;
@@ -85,7 +93,9 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadShapes()
-	{	avatarS = new ImportedModel("dolphinHighPoly.obj");
+	{	avatarS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
+		avatarS.loadAnimation("driveForward", "forward.rka");
+		avatarS.loadAnimation("driveBackward", "backward.rka");
 		ghostS = new ImportedModel("dolphinHighPoly.obj");
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
@@ -95,7 +105,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadTextures()
-	{	avatartx = new TextureImage("Dolphin_HighPolyUV.jpg");
+	{	avatartx = new TextureImage("BikeTxt.jpg");
 		ghosttx = new TextureImage("redDolphin.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
@@ -109,12 +119,18 @@ public class MyGame extends VariableFrameRateGame
 
 		// build avatarphin in the center of the window
 		avatar = new GameObject(GameObject.root(), avatarS, avatartx);
-		initialTranslation = (new Matrix4f()).translation(0,1,0);
-		initialScale = (new Matrix4f()).scaling(3.0f);
+		initialTranslation = (new Matrix4f()).translation(0,0,0);
+		initialScale = (new Matrix4f()).scaling(1.0f);
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
 		avatarPhy = sg.addPhysicsSphere(1.0f, new Vector3f(0,0,0), new Quaternionf(), 3.0f);
 		avatar.setPhysicsObject(avatarPhy);
+
+		npc = new GameObject(GameObject.root(), npcS, npctx);
+		initialTranslation = (new Matrix4f()).translation(1,1,1);
+		initialScale = (new Matrix4f()).scaling(1.0f);
+		avatar.setLocalTranslation(initialTranslation);
+		avatar.setLocalScale(initialScale);
 
 		xAxis = new GameObject(GameObject.root(), xAxisS);
 		yAxis = new GameObject(GameObject.root(), yAxisS);
@@ -122,7 +138,7 @@ public class MyGame extends VariableFrameRateGame
 
 		floor = new GameObject(GameObject.root(), floorS, floortx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
-		initialScale = (new Matrix4f()).scaling(50.0f, 1.0f, 50.0f);
+		initialScale = (new Matrix4f()).scaling(100.0f, 5.0f, 100.0f);
 		floor.setLocalTranslation(initialTranslation);
 		floor.setLocalScale(initialScale);
 		floor.setHeightMap(boundaries);
@@ -204,7 +220,7 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadSkyBoxes() {
 
-		walls = (engine.getSceneGraph()).loadCubeMap("walls");
+		walls = (engine.getSceneGraph()).loadCubeMap("newWalls");
 
 		(engine.getSceneGraph()).setActiveSkyBoxTexture(walls);
 		(engine.getSceneGraph()).setSkyBoxEnabled(true);
@@ -218,7 +234,7 @@ public class MyGame extends VariableFrameRateGame
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
 
-		float moveSpeed = (float)(frameTime * 0.04);
+		float moveSpeed = (float)(frameTime * 0.06);
 		float turnSpeed = (float)(frameTime * 0.002);
 
 		if (!paused) elapsTime += (frameTime) / 1000.0;
@@ -247,6 +263,7 @@ public class MyGame extends VariableFrameRateGame
 				Matrix4f rot = avatar.getWorldRotation();
 				avatar.setLocalRotation(rot.rotate(-turnSpeed, 0, 1, 0));
 			}
+			avatarS.updateAnimation();
 			updateRidingCamera();
 		}
 
@@ -268,6 +285,25 @@ public class MyGame extends VariableFrameRateGame
 
     		cam.setLocation(camLoc);
 			updateFreeCamera();
+		}
+
+		physicsEngine.update((float)elapsTime/1000f);
+		for(GameObject go:engine.getSceneGraph().getGameObjects()) {
+			if(go.getPhysicsObject() != null) {
+				Vector3f loc = go.getPhysicsObject().getLocation();
+				Matrix4f locMat = new Matrix4f();
+				locMat.set(3,0,loc.x);
+				locMat.set(3,1,loc.y);
+				locMat.set(3,2,loc.z);
+				go.setLocalTranslation(locMat);
+
+				Quaternionf rot = go.getPhysicsObject().getRotation();
+				Matrix4f rotMat = new Matrix4f();
+				rot.get(rotMat);
+				go.setLocalRotation(rotMat);
+					
+				};
+			}
 		}
 
 		if (!mouseInitiated) initMouseMode();
@@ -300,6 +336,7 @@ public class MyGame extends VariableFrameRateGame
 	}
 
 	public GameObject getAvatar() {return avatar;}
+	public AnimatedShape getAnimatedAvatar() {return avatarS;}
 
 	public void toggleCameraMode() {
 		riding = !riding;
@@ -323,8 +360,9 @@ public class MyGame extends VariableFrameRateGame
 		cam.setU(right);
 		cam.setV(up);
 		cam.setN(fwd);
-		Vector3f camLoc = new Vector3f(loc).add(new Vector3f(up).mul(1.3f))
-		.add(new Vector3f(fwd).mul(-4.5f));
+		cam.lookAt(avatar);
+		Vector3f camLoc = new Vector3f(loc).add(new Vector3f(up).mul(5f))
+		.add(new Vector3f(fwd).mul(-9f));
 
 		cam.setLocation(camLoc);
 	}
