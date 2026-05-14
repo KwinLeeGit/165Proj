@@ -98,9 +98,9 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadShapes()
-	{	avatarS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
-		avatarS.loadAnimation("driveForward", "forward.rka");
-		avatarS.loadAnimation("driveBackward", "backward.rka");
+	{	avatarS = new AnimatedShape("Bike3.rkm", "Bike3.rks");
+		avatarS.loadAnimation("driveForward", "Bike3Fwd.rka");
+		avatarS.loadAnimation("driveBackward", "Bike3Bkwd.rka");
 		npcS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
 		npcS.loadAnimation("driveForward", "forward.rka");
 		npcS.loadAnimation("driveBackward", "backward.rka");
@@ -113,7 +113,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadTextures()
-	{	avatartx = new TextureImage("BikeTxt.jpg");
+	{	avatartx = new TextureImage("Bike3BlueTxt.jpg");
 		npctx = new TextureImage("Bike2Txt.jpg");
 		ghosttx = new TextureImage("Bike3Txt.jpg");
 		floortx = new TextureImage("grid.jpg");
