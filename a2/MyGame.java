@@ -9,6 +9,7 @@ import tage.input.*;
 import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
 import tage.networking.client.*;
+import tage.CameraController;
 
 import java.lang.Math;
 import java.awt.*;
@@ -53,8 +54,6 @@ public class MyGame extends VariableFrameRateGame
 	private float maxSpeed = 20f;
 	private float drag = 2f;
 	private float adj;
-	private IAudioManager audioManager;
-	private Sound engSound, engSound2;
 
 
 	private String serverAddress;
@@ -70,9 +69,11 @@ public class MyGame extends VariableFrameRateGame
 	private float curMouseX, curMouseY, centerX, centerY, prevMouseX, prevMouseY;
 	private boolean isRecentering;
 	private Canvas canvas;
+	private CameraController avatarCam;
+	private AudioController audioController;
 
-	Vector3f loc, fwd, up, right, newLocation, origin = new Vector3f(0,0,0);
-	Matrix4f rot, pit;
+	Vector3f newLocation, origin = new Vector3f(0f,0f,0f);
+	Vector3f rot, pit;
 	float turn = 0, pitch = 0;
 	Camera cam;
 
@@ -108,7 +109,7 @@ public class MyGame extends VariableFrameRateGame
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
-		floorS = new TerrainPlane(1000);
+		floorS = new TerrainPlane(1500);
 	}
 
 	@Override
@@ -122,25 +123,6 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadSounds() {
-		audioManager = engine.getAudioManager();
-
-		AudioResource engineRes = audioManager.createAudioResource("engine.wav", AudioResourceType.AUDIO_SAMPLE);
-		AudioResource engineRes2 = audioManager.createAudioResource("engine.wav", AudioResourceType.AUDIO_SAMPLE);
-
-
-		engSound = new Sound(engineRes, SoundType.SOUND_EFFECT, 0, true);
-		engSound2 = new Sound(engineRes2, SoundType.SOUND_EFFECT, 100, true);
-
-		engSound.initialize(audioManager);
-		engSound2.initialize(audioManager);
-
-		engSound.setMaxDistance(50f);
-		engSound.setMinDistance(0.5f);
-		engSound.setRollOff(5f);
-
-		engSound2.setMaxDistance(1000f);
-		engSound2.setMinDistance(5f);
-		engSound2.setRollOff(1f);
 	}
 
 	@Override
@@ -168,7 +150,7 @@ public class MyGame extends VariableFrameRateGame
 
 		floor = new GameObject(GameObject.root(), floorS, floortx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
-		initialScale = (new Matrix4f()).scaling(100.0f, 5.0f, 100.0f);
+		initialScale = (new Matrix4f()).scaling(500.0f, 10.0f, 500.0f);
 		floor.setLocalTranslation(initialTranslation);
 		floor.setLocalScale(initialScale);
 		floor.setHeightMap(boundaries);
@@ -201,19 +183,16 @@ public class MyGame extends VariableFrameRateGame
 		elapsTime = 0.0;
 		(engine.getRenderSystem()).setWindowDimensions(1900,1000);
 
-		// ------------- positioning the camera -------------
-		(engine.getRenderSystem().getViewport("MAIN").getCamera()).setLocation(new Vector3f(0,0,5));
+		avatarCam = new CameraController(engine, avatar);
 
 		//Input Section
 		initInputs();
 
 		setupNetworking();
 
-		engSound.setLocation(avatar.getWorldLocation());
-		engSound2.setLocation(npc.getWorldLocation());
-		setEarParameters();
-		//engSound.play();	
-		engSound2.play();	
+		audioController = new AudioController(engine, avatar, npc);
+		audioController.loadSounds();
+		audioController.initSound();
 		
 	}
 
@@ -253,12 +232,6 @@ public class MyGame extends VariableFrameRateGame
 
 	}
 
-	public void setEarParameters()
-	{ Camera camera = (engine.getRenderSystem()).getViewport("MAIN").getCamera();
-		audioManager.getEar().setLocation(camera.getLocation());
-		audioManager.getEar().setOrientation(camera.getN(), new Vector3f(0.0f, 1.0f, 0.0f));
-	}
-
 	@Override
 	public void loadSkyBoxes() {
 
@@ -283,6 +256,9 @@ public class MyGame extends VariableFrameRateGame
 		adj = (float)(frameTime/1000.0);
 
 		Vector3f fwd = avatar.getWorldForwardVector();
+		Vector3f right = avatar.getLocalRightVector();
+
+
 
 		if (!paused) elapsTime += (frameTime) / 1000.0;
 		if (riding) {
@@ -307,7 +283,7 @@ public class MyGame extends VariableFrameRateGame
 
 
 			avatarS.updateAnimation();
-			updateRidingCamera();
+			avatarCam.updateRidingCamera();
 			
 		}
 
@@ -349,28 +325,9 @@ public class MyGame extends VariableFrameRateGame
 			npcP.applyForce(npcForward.x() * 10f, 0, npcForward.z() * 10f, 0, 0, 0);
 		}
 
-		physicsEngine.update((float)frameTime/1000f);
-		for(GameObject go:engine.getSceneGraph().getGameObjects()) {
-			if(go.getPhysicsObject() != null) {
-				Vector3f loc = go.getPhysicsObject().getLocation();
-				Matrix4f locMat = new Matrix4f();
-				locMat.set(3,0,loc.x);
-				locMat.set(3,1,loc.y);
-				locMat.set(3,2,loc.z);
-				go.setLocalTranslation(locMat);
-
-				Quaternionf rot = go.getPhysicsObject().getRotation();
-				Matrix4f rotMat = new Matrix4f();
-				rot.get(rotMat);
-				go.setLocalRotation(rotMat);
-					
-			};
-		}
-
-		//engSound.setLocation(avatar.getWorldLocation());
-		engSound2.setLocation(npc.getWorldLocation());
-		setEarParameters();
-
+		
+		audioController.updateSound();
+		
 		if (!mouseInitiated) initMouseMode();
 
 		// build and set HUD
@@ -395,6 +352,25 @@ public class MyGame extends VariableFrameRateGame
 		&& protClient != null && isClientConnected) {
 			protClient.sendMoveMessage(avatar.getWorldLocation());
 		}
+
+		physicsEngine.update((float)frameTime/1000f);
+		for(GameObject go:engine.getSceneGraph().getGameObjects()) {
+			if(go.getPhysicsObject() != null) {
+				Vector3f goLoc = go.getPhysicsObject().getLocation();
+				Matrix4f locMat = new Matrix4f();
+				locMat.set(3,0,goLoc.x);
+				locMat.set(3,1,goLoc.y);
+				locMat.set(3,2,goLoc.z);
+				go.setLocalTranslation(locMat);
+
+				Quaternionf rot = go.getPhysicsObject().getRotation();
+				Matrix4f rotMat = new Matrix4f();
+				rot.get(rotMat);
+				go.setLocalRotation(rotMat);
+					
+			};
+		}
+
 		
 
 		
@@ -402,7 +378,7 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void initializePhysicsObjects() {
-		float[] gravity = {0f, -15f, 0f};
+		float[] gravity = {0f, -10f, 0f};
 		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
 		physicsEngine.setGravity(gravity);
 
@@ -415,8 +391,8 @@ public class MyGame extends VariableFrameRateGame
 
 		loc = avatar.getWorldLocation(); rot = new Quaternionf();
 		(avatar.getWorldRotation()).getNormalizedRotation(rot);
-		avatarP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		avatarP.setFriction(.5f);
+		avatarP = (engine.getSceneGraph()).addPhysicsCapsule(mass, loc, rot, 2, 1f, 3.0f);
+		avatarP.setFriction(0f);
 		avatarP.disableSleeping();
 		avatarP.setDamping(.6f, .8f);
 		avatarP.setBounciness(0);
@@ -426,14 +402,14 @@ public class MyGame extends VariableFrameRateGame
 		loc = npc.getWorldLocation(); rot = new Quaternionf();
 		(npc.getWorldRotation()).getNormalizedRotation(rot);
 		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		npcP.setFriction(1f);
+		npcP.setFriction(.5f);
 		npcP.disableSleeping();
 		npc.setPhysicsObject(npcP);
 
 		loc = floor.getWorldLocation(); rot = new Quaternionf();
 		(floor.getWorldRotation()).getNormalizedRotation(rot);
-		floorP = (engine.getSceneGraph()).addPhysicsStaticTerrainMesh(loc, rot, boundaries, 100f, 5f, 100);
-		floorP.setFriction(.5f);
+		floorP = (engine.getSceneGraph()).addPhysicsStaticTerrainMesh(loc, rot, boundaries, 500f, 10f, 500);
+		floorP.setFriction(0f);
 		floorP.setBounciness(0);
 		floorP.disableSleeping();
 		floor.setPhysicsObject(floorP);
@@ -447,24 +423,6 @@ public class MyGame extends VariableFrameRateGame
 
 	public void toggleCameraMode() {
 		riding = !riding;
-	}
-
-	private void updateRidingCamera() {
-
-		cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
-
-		fwd = avatar.getWorldForwardVector();
-		loc = avatar.getWorldLocation();
-		up = avatar.getWorldUpVector();
-		right = avatar.getWorldRightVector();
-		cam.setU(right);
-		cam.setV(up);
-		cam.setN(fwd);
-		cam.lookAt(avatar);
-		Vector3f camLoc = new Vector3f(loc).add(new Vector3f(up).mul(5f))
-		.add(new Vector3f(fwd).mul(-9f));
-
-		cam.setLocation(camLoc);
 	}
 
 	private void updateFreeCamera() {
@@ -492,10 +450,6 @@ public class MyGame extends VariableFrameRateGame
 		cam.setN(forward);
 		cam.setU(right);
 		cam.setV(up);
-
-		this.fwd = forward;
-		this.right = right;
-		this.up = up;
 	}
 
 	public void setMoveForward(boolean val) { moveForward = val; }
