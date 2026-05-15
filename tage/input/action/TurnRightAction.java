@@ -1,5 +1,6 @@
 package tage.input.action;
 import tage.GameObject;
+import tage.input.MovementController;
 import tage.input.action.AbstractInputAction;
 
 import net.java.games.input.Event;
@@ -11,19 +12,16 @@ import org.joml.*;
 import a2.MyGame;
 
 public class TurnRightAction extends AbstractInputAction {
-    private MyGame game;
+    private MovementController moveController;;
 
-    public TurnRightAction(MyGame g) {
-        game = g;
+    public TurnRightAction(MovementController moveController) {
+        this.moveController = moveController;
     }
 
     @Override
     public void performAction(float time, Event e) {
         float val = e.getValue();
 
-        if(val > 0.2f)
-            game.setTurnRight(true);
-        else
-            game.setTurnRight(false);
+        moveController.setTurnRight(val > 0.2f);
     }
 }

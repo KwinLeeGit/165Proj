@@ -279,7 +279,7 @@ public class SceneGraph
 		}
 		else
 		{	go.getRenderStates().setModelOrientationCorrection(
-			(new Matrix4f()).rotationZ((float)java.lang.Math.toRadians(90.0f)));
+			(new Matrix4f()).rotationX((float)java.lang.Math.toRadians(90.0f)));
 		}
 		return po;
 	}

@@ -3,6 +3,7 @@ package a2;
 import tage.*;
 import tage.shapes.*;
 import tage.nodeControllers.RotationController;
+import tage.physics.PhysicsController;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
 import tage.input.*;
@@ -10,6 +11,7 @@ import tage.input.action.*;
 import tage.networking.IGameConnection.ProtocolType;
 import tage.networking.client.*;
 import tage.CameraController;
+import tage.ai.*;
 
 import java.lang.Math;
 import java.awt.*;
@@ -49,11 +51,6 @@ public class MyGame extends VariableFrameRateGame
 	private Light light1, light2, light3, light4;
 	private PhysicsObject avatarP, npcP, floorP;
 	private PhysicsEngine physicsEngine;
-	private float currentSpeed = 0;
-	private float accel = 5f;
-	private float maxSpeed = 20f;
-	private float drag = 2f;
-	private float adj;
 
 
 	private String serverAddress;
@@ -71,6 +68,10 @@ public class MyGame extends VariableFrameRateGame
 	private Canvas canvas;
 	private CameraController avatarCam;
 	private AudioController audioController;
+	private NPCController npcController;
+	private MovementController moveController;
+	private HUDController hudController;
+	private PhysicsController physController;
 
 	Vector3f newLocation, origin = new Vector3f(0f,0f,0f);
 	Vector3f rot, pit;
@@ -185,24 +186,25 @@ public class MyGame extends VariableFrameRateGame
 
 		avatarCam = new CameraController(engine, avatar);
 
-		//Input Section
-		initInputs();
+		
 
 		setupNetworking();
 
 		audioController = new AudioController(engine, avatar, npc);
 		audioController.loadSounds();
 		audioController.initSound();
-		
+
+		hudController = new HUDController(engine);
+
 	}
 
 	private void initInputs() {
 		im = engine.getInputManager();
 
-		FwdAction fwdAction = new FwdAction(this);
-		BkwdAction bkwdAction = new BkwdAction(this);
-		TurnLeftAction turnLeftAction = new TurnLeftAction(this);
-		TurnRightAction turnRightAction = new TurnRightAction(this);
+		FwdAction fwdAction = new FwdAction(moveController);
+		BkwdAction bkwdAction = new BkwdAction(moveController);
+		TurnLeftAction turnLeftAction = new TurnLeftAction(moveController);
+		TurnRightAction turnRightAction = new TurnRightAction(moveController);
 		CamToggleAction camToggleAction = new CamToggleAction(this);
 
 		im.associateActionWithAllKeyboards(
@@ -248,12 +250,10 @@ public class MyGame extends VariableFrameRateGame
 		lastFrameTime = currFrameTime;
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
-		adj = (float)(frameTime/1000.0);
 
 		float camSpeed = (float)(frameTime * 0.005f);
 		float moveSpeed = (float)(frameTime * 2.5f);
 		float turnSpeed = (float)(frameTime * 1f);
-		adj = (float)(frameTime/1000.0);
 
 		Vector3f fwd = avatar.getWorldForwardVector();
 		Vector3f right = avatar.getLocalRightVector();
@@ -263,26 +263,7 @@ public class MyGame extends VariableFrameRateGame
 		if (!paused) elapsTime += (frameTime) / 1000.0;
 		if (riding) {
 
-			if (moveForward) {
-
-				avatarP.applyForce(fwd.x() * moveSpeed, 0, fwd.z() * moveSpeed, 0, 0, 0);
-			}
-
-    		if (moveBackward) {
-
-				avatarP.applyForce(-fwd.x() * moveSpeed, 0, -fwd.z() * moveSpeed, 0, 0, 0);
-			}
-
-			if (turnLeft) {
-				avatarP.applyTorque(0, turnSpeed, 0);
-			}
-
-			if (turnRight) {
-				avatarP.applyTorque(0, -turnSpeed, 0);
-			}
-
-
-			avatarS.updateAnimation();
+			moveController.update(frameTime);
 			avatarCam.updateRidingCamera();
 			
 		}
@@ -307,44 +288,14 @@ public class MyGame extends VariableFrameRateGame
 			updateFreeCamera();
 		}
 
-		Vector3f toPlayer = new Vector3f(avatar.getWorldLocation())
-		.sub(npc.getWorldLocation());
-
-		float distance = toPlayer.length();
-
-		if (distance > 5f) {
-			toPlayer.normalize();
-
-			// Turn toward player
-			Vector3f npcForward = npc.getWorldForwardVector();
-			float turn = npcForward.cross(toPlayer).y;
-
-			npcP.applyTorque(0, turn * 5f, 0);
-
-			// Move forward
-			npcP.applyForce(npcForward.x() * 10f, 0, npcForward.z() * 10f, 0, 0, 0);
-		}
+		npcController.update();
 
 		
 		audioController.updateSound();
-		
+
 		if (!mouseInitiated) initMouseMode();
 
-		// build and set HUD
-		String counterStr = Integer.toString(counter);
-		String elapsTimeStr = Integer.toString((int)elapsTime);
-		String dispStr1 = "Time = " + elapsTimeStr;
-		String dispStr2 = "Score = " + counterStr;
-		if (gameState.equals("lose")){
-			dispStr1 = "Game Over!";
-		}
-		if (gameState.equals("win")){
-			dispStr2 = "You Win!";
-		}
-		Vector3f hud1Color = new Vector3f(1,0,0);
-		Vector3f hud2Color = new Vector3f(0,0,1);
-		(engine.getHUDmanager()).setHUD1(dispStr1, hud1Color, 15, 15);
-		(engine.getHUDmanager()).setHUD2(dispStr2, hud2Color, 500, 15);
+		hudController.update(elapsTime, gameState, counter);
 
 		processNetworking((float)elapsTime);
 
@@ -353,69 +304,17 @@ public class MyGame extends VariableFrameRateGame
 			protClient.sendMoveMessage(avatar.getWorldLocation());
 		}
 
-		physicsEngine.update((float)frameTime/1000f);
-		for(GameObject go:engine.getSceneGraph().getGameObjects()) {
-			if(go.getPhysicsObject() != null) {
-				Vector3f goLoc = go.getPhysicsObject().getLocation();
-				Matrix4f locMat = new Matrix4f();
-				locMat.set(3,0,goLoc.x);
-				locMat.set(3,1,goLoc.y);
-				locMat.set(3,2,goLoc.z);
-				go.setLocalTranslation(locMat);
-
-				Quaternionf rot = go.getPhysicsObject().getRotation();
-				Matrix4f rotMat = new Matrix4f();
-				rot.get(rotMat);
-				go.setLocalRotation(rotMat);
-					
-			};
-		}
-
-		
-
-		
+		physController.update(frameTime);
+		physController.syncGameObjectsToPhysics();
 	}
 
 	@Override
 	public void initializePhysicsObjects() {
-		float[] gravity = {0f, -10f, 0f};
-		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
-		physicsEngine.setGravity(gravity);
-
-		float mass = 1f;
-		float up[] = {0,1,0};
-		float radius = .75f;
-		float size[] = {2,2,5};
-		Vector3f loc;
-		Quaternionf rot;
-
-		loc = avatar.getWorldLocation(); rot = new Quaternionf();
-		(avatar.getWorldRotation()).getNormalizedRotation(rot);
-		avatarP = (engine.getSceneGraph()).addPhysicsCapsule(mass, loc, rot, 2, 1f, 3.0f);
-		avatarP.setFriction(0f);
-		avatarP.disableSleeping();
-		avatarP.setDamping(.6f, .8f);
-		avatarP.setBounciness(0);
-		avatarP.setAngularFactor(up);
-		avatar.setPhysicsObject(avatarP);
-
-		loc = npc.getWorldLocation(); rot = new Quaternionf();
-		(npc.getWorldRotation()).getNormalizedRotation(rot);
-		npcP = (engine.getSceneGraph()).addPhysicsBox(mass, loc, rot, size);
-		npcP.setFriction(.5f);
-		npcP.disableSleeping();
-		npc.setPhysicsObject(npcP);
-
-		loc = floor.getWorldLocation(); rot = new Quaternionf();
-		(floor.getWorldRotation()).getNormalizedRotation(rot);
-		floorP = (engine.getSceneGraph()).addPhysicsStaticTerrainMesh(loc, rot, boundaries, 500f, 10f, 500);
-		floorP.setFriction(0f);
-		floorP.setBounciness(0);
-		floorP.disableSleeping();
-		floor.setPhysicsObject(floorP);
-		
-		engine.enableGraphicsWorldRender();
-		engine.enablePhysicsWorldRender();
+		physController = new PhysicsController(engine);
+		physController.initializePhysicsObjects(avatar, npc, floor, boundaries);
+		npcController = new NPCController(npc, physController.getNpcPhysics(), avatar);
+		moveController = new MovementController(avatar, avatarS, physController.getAvatarPhysics());
+		initInputs();
 	}
 
 	public GameObject getAvatar() {return avatar;}
