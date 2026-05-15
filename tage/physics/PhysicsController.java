@@ -40,7 +40,6 @@ public class PhysicsController {
 
         loc = avatar.getWorldLocation();
         rot = new Quaternionf();
-        rot.rotateX((float)java.lang.Math.toRadians(90.0f));
         avatar.getWorldRotation().getNormalizedRotation(rot);
 
         avatarP = engine.getSceneGraph().addPhysicsCapsule(mass, loc, rot, 2, radius, height);

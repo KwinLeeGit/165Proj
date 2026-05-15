@@ -100,13 +100,13 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadShapes()
-	{	avatarS = new AnimatedShape("Bike3.rkm", "Bike3.rks");
-		avatarS.loadAnimation("driveForward", "Bike3Fwd.rka");
-		avatarS.loadAnimation("driveBackward", "Bike3Bkwd.rka");
-		npcS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
-		npcS.loadAnimation("driveForward", "forward.rka");
-		npcS.loadAnimation("driveBackward", "backward.rka");
-		ghostS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
+	{	avatarS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
+		avatarS.loadAnimation("driveForward", "Bike2Fwd.rka");
+		avatarS.loadAnimation("driveBackward", "Bike2Bkwd.rka");
+		npcS = new AnimatedShape("Bike1.rkm", "Bike1.rks");
+		npcS.loadAnimation("driveForward", "Bike1Fwd.rka");
+		npcS.loadAnimation("driveBackward", "Bike1Bkwd.rka");
+		ghostS = new AnimatedShape("Bike1.rkm", "Bike1.rks");
 		xAxisS = new Line(origin, new Vector3f(200,0,0));
 		yAxisS = new Line(origin, new Vector3f(0,200,0));
 		zAxisS = new Line(origin, new Vector3f(0,0,200));
@@ -115,9 +115,9 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadTextures()
-	{	avatartx = new TextureImage("Bike3BlueTxt.jpg");
-		npctx = new TextureImage("Bike2Txt.jpg");
-		ghosttx = new TextureImage("Bike3Txt.jpg");
+	{	avatartx = new TextureImage("Bike2Blu.jpg");
+		npctx = new TextureImage("Bike1Grn.jpg");
+		ghosttx = new TextureImage("Bike1Org.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
 	}
