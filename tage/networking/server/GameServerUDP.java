@@ -49,7 +49,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			// Received Message Format: (create,localId,x,y,z)
 			if(messageTokens[0].compareTo("create") == 0)
 			{	UUID clientID = UUID.fromString(messageTokens[1]);
-				String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4]};
+				String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4], messageTokens[5], messageTokens[6]};
 				sendCreateMessages(clientID, pos);
 				sendWantsDetailsMessages(clientID);
 			}
@@ -59,7 +59,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			if(messageTokens[0].compareTo("dsfr") == 0)
 			{	UUID clientID = UUID.fromString(messageTokens[1]);
 				UUID remoteID = UUID.fromString(messageTokens[2]);
-				String[] pos = {messageTokens[3], messageTokens[4], messageTokens[5]};
+				String[] pos = {messageTokens[3], messageTokens[4], messageTokens[5], messageTokens[6], messageTokens[7]};
 				sendDetailsForMessage(clientID, remoteID, pos);
 			}
 			
@@ -67,7 +67,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			// Received Message Format: (move,localId,x,y,z)
 			if(messageTokens[0].compareTo("move") == 0)
 			{	UUID clientID = UUID.fromString(messageTokens[1]);
-				String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4]};
+				String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4], messageTokens[5], messageTokens[6]};
 				sendMoveMessages(clientID, pos);
 	}	}	}
 
@@ -110,12 +110,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 	// connected to the server. 
 	// Message Format: (create,remoteId,x,y,z) where x, y, and z represent the position
 
-	public void sendCreateMessages(UUID clientID, String[] position)
+	public void sendCreateMessages(UUID clientID, String[] data)
 	{	try 
 		{	String message = new String("create," + clientID.toString());
-			message += "," + position[0];
-			message += "," + position[1];
-			message += "," + position[2];	
+			message += "," + data[0];
+			message += "," + data[1];
+			message += "," + data[2];
+			message += "," + data[3];
+			message += "," + data[4];	
 			forwardPacketToAll(message, clientID);
 		} 
 		catch (IOException e) 
@@ -128,12 +130,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 	// remoteId is used to send this message to the proper client. 
 	// Message Format: (dsfr,remoteId,x,y,z) where x, y, and z represent the position.
 
-	public void sendDetailsForMessage(UUID clientID, UUID remoteId, String[] position)
+	public void sendDetailsForMessage(UUID clientID, UUID remoteId, String[] data)
 	{	try 
 		{	String message = new String("dsfr," + remoteId.toString());
-			message += "," + position[0];
-			message += "," + position[1];
-			message += "," + position[2];	
+			message += "," + data[0];
+			message += "," + data[1];
+			message += "," + data[2];
+			message += "," + data[3];
+			message += "," + data[4];	
 			sendPacket(message, clientID);
 		} 
 		catch (IOException e) 
@@ -159,12 +163,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 	// connected to the server when it receives a MOVE message from the remote client.   
 	// Message Format: (move,remoteId,x,y,z) where x, y, and z represent the position.
 
-	public void sendMoveMessages(UUID clientID, String[] position)
+	public void sendMoveMessages(UUID clientID, String[] data)
 	{	try 
 		{	String message = new String("move," + clientID.toString());
-			message += "," + position[0];
-			message += "," + position[1];
-			message += "," + position[2];
+			message += "," + data[0];
+			message += "," + data[1];
+			message += "," + data[2];
+			message += "," + data[3];
+			message += "," + data[4];
 			forwardPacketToAll(message, clientID);
 		} 
 		catch (IOException e) 

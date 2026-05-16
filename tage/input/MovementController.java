@@ -106,7 +106,7 @@ public class MovementController {
         bikeShape.stopAnimation();
         bikeShape.playAnimation(
             "driveForward",
-            0.25f,
+            .25f,
             AnimatedShape.EndType.LOOP,
             0
         );
@@ -121,7 +121,7 @@ private void playBackwardAnimation() {
         bikeShape.stopAnimation();
         bikeShape.playAnimation(
             "driveBackward",
-            0.25f,
+            .25f,
             AnimatedShape.EndType.LOOP,
             0
         );

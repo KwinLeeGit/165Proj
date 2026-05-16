@@ -74,8 +74,15 @@ public class ProtocolClient extends GameConnectionClient
 					Float.parseFloat(messageTokens[3]),
 					Float.parseFloat(messageTokens[4]));
 
+				int bike = Integer.parseInt(messageTokens[5]);
+				String color = messageTokens[6];
+
 				try
-				{	ghostManager.createGhostAvatar(ghostID, ghostPosition);
+				{	if (!ghostManager.hasGhostAvatar(ghostID)) {
+						ghostManager.createGhostAvatar(ghostID, ghostPosition, bike, color);
+					} else {
+						ghostManager.updateGhostAvatar(ghostID, ghostPosition);
+					}
 				}	catch (IOException e)
 				{	System.out.println("error creating ghost avatar");
 				}
@@ -95,18 +102,38 @@ public class ProtocolClient extends GameConnectionClient
 			// Format: (move,remoteId,x,y,z)
 			if (messageTokens[0].compareTo("move") == 0)
 			{
+
+				if (messageTokens.length < 7) return;
 				// move a ghost avatar
 				// Parse out the id into a UUID
 				UUID ghostID = UUID.fromString(messageTokens[1]);
+
+				if (ghostID.equals(id)) return;
 				
 				// Parse out the position into a Vector3f
 				Vector3f ghostPosition = new Vector3f(
 					Float.parseFloat(messageTokens[2]),
 					Float.parseFloat(messageTokens[3]),
-					Float.parseFloat(messageTokens[4]));
+					Float.parseFloat(messageTokens[4])
+				);
 				
-				ghostManager.updateGhostAvatar(ghostID, ghostPosition);
-	}	}	}
+				int bike = Integer.parseInt(messageTokens[5]);
+				String color = messageTokens[6];
+
+				if (!ghostManager.hasGhostAvatar(ghostID)) {
+					try {
+						ghostManager.createGhostAvatar(ghostID, ghostPosition, bike, color);
+					} catch (IOException e) {
+						System.out.println("error creating ghost avatar from move packet");
+					}
+				} 
+				else {
+					ghostManager.updateGhostAvatar(ghostID, ghostPosition);
+				}
+				
+			}	
+		}	
+	}
 	
 	// The initial message from the game client requesting to join the 
 	// server. localId is a unique identifier for the client. Recommend 
@@ -141,6 +168,8 @@ public class ProtocolClient extends GameConnectionClient
 			message += "," + position.x();
 			message += "," + position.y();
 			message += "," + position.z();
+			message += "," + game.getSelectedBike();
+			message += "," + game.getSelectedColor();
 			
 			sendPacket(message);
 		} catch (IOException e) 
@@ -159,6 +188,8 @@ public class ProtocolClient extends GameConnectionClient
 			message += "," + position.x();
 			message += "," + position.y();
 			message += "," + position.z();
+			message += "," + game.getSelectedBike();
+			message += "," + game.getSelectedColor();
 			
 			sendPacket(message);
 		} catch (IOException e) 
@@ -174,9 +205,12 @@ public class ProtocolClient extends GameConnectionClient
 			message += "," + position.x();
 			message += "," + position.y();
 			message += "," + position.z();
+			message += "," + game.getSelectedBike();
+        	message += "," + game.getSelectedColor();
 			
 			sendPacket(message);
 		} catch (IOException e) 
 		{	e.printStackTrace();
 	}	}
+
 }

@@ -34,23 +34,22 @@ public class MyGame extends VariableFrameRateGame
 	private static Engine engine;
 	private InputManager im;
 	private GhostManager gm;
-	private boolean mouseInitiated = false;
 	private boolean paused=false;
-	private boolean riding=true;
-	private boolean initPhys = false;
-	private boolean moveForward, moveBackward, turnLeft, turnRight;
 	private String gameState = "play";
+	private boolean muliplayer;
+	private int selectedBike;
+	private String selectedColor;
 	private int counter=0;
 	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
 	private GameObject avatar, npc, xAxis, yAxis, zAxis, floor;
-	private AnimatedShape avatarS, npcS;
+	private AnimatedShape avatarS, npcS, ghostBike1S, ghostBike2S;
 	private ObjShape ghostS, xAxisS, yAxisS, zAxisS, floorS;
 	private TextureImage avatartx, npctx, floortx, boundaries, ghosttx;
+	private TextureImage bike1BlueTx, bike1GreenTx, bike1OrangeTx;
+	private TextureImage bike2BlueTx, bike2GreenTx, bike2OrangeTx;
 	private Light light1, light2, light3, light4;
-	private PhysicsObject avatarP, npcP, floorP;
-	private PhysicsEngine physicsEngine;
 
 
 	private String serverAddress;
@@ -58,14 +57,6 @@ public class MyGame extends VariableFrameRateGame
 	private ProtocolType serverProtocol;
 	private ProtocolClient protClient;
 	private boolean isClientConnected = false;
-	private float avatarRadius = 3.0f;
-	private float yaw;
-	private float yawAngle = 0.0f;
-	private float pitchAngle = 0.0f;
-	private Robot robot;
-	private float curMouseX, curMouseY, centerX, centerY, prevMouseX, prevMouseY;
-	private boolean isRecentering;
-	private Canvas canvas;
 	private CameraController avatarCam;
 	private AudioController audioController;
 	private NPCController npcController;
@@ -73,16 +64,16 @@ public class MyGame extends VariableFrameRateGame
 	private HUDController hudController;
 	private PhysicsController physController;
 
-	Vector3f newLocation, origin = new Vector3f(0f,0f,0f);
-	Vector3f rot, pit;
-	float turn = 0, pitch = 0;
-	Camera cam;
+	Vector3f origin = new Vector3f(0f,0f,0f);
 
-	public MyGame(String serverAddress, int serverPort, String protocol) { 
+	public MyGame(String serverAddress, int serverPort, String protocol, boolean muliplayer, int selectedBike, String selectedColor) { 
 		super();
 		gm = new GhostManager(this);
 		this.serverAddress = serverAddress;
 		this.serverPort = serverPort;
+		this.muliplayer = muliplayer;
+		this.selectedBike = selectedBike;
+		this.selectedColor = selectedColor;
 		if (protocol.toUpperCase().compareTo("TCP") == 0)
 			this.serverProtocol = ProtocolType.TCP;
 
@@ -91,7 +82,53 @@ public class MyGame extends VariableFrameRateGame
 		}
 
 	public static void main(String[] args)
-	{	MyGame game = new MyGame(args[0], Integer.parseInt(args[1]), args[2]);
+	{	
+		String[] modes = {"Single Player", "Multiplayer"};
+		int modeChoice = JOptionPane.showOptionDialog(
+			null, 
+			"Choose game mode", 
+			"Bike Bash", 
+			JOptionPane.DEFAULT_OPTION, 
+			JOptionPane.QUESTION_MESSAGE, 
+			null, 
+			modes, 
+			modes[0]
+		);
+
+		boolean muliplayer = modeChoice == 1;
+
+		String[] bikes = {"Bike 1", "Bike 2"};
+   	 	int bikeChoice = JOptionPane.showOptionDialog(
+			null,
+			"Choose your bike:",
+			"Bike Select",
+			JOptionPane.DEFAULT_OPTION,
+			JOptionPane.QUESTION_MESSAGE,
+			null,
+			bikes,
+			bikes[0]
+    	);
+
+		int selectedBike = bikeChoice == 1 ? 2 : 1;
+		
+		String[] colors = {"Blue", "Green", "Orange"};
+		int colorChoice = JOptionPane.showOptionDialog(
+			null,
+			"Choose your bike color:",
+			"Color Select",
+			JOptionPane.DEFAULT_OPTION,
+			JOptionPane.QUESTION_MESSAGE,
+			null,
+			colors,
+			colors[0]
+		);
+
+		String selectedColor = colors[colorChoice < 0 ? 0 : colorChoice];
+		
+		
+		
+		
+		MyGame game = new MyGame(args[0], Integer.parseInt(args[1]), args[2], muliplayer, selectedBike, selectedColor);
 		engine = new Engine(game);
 		engine.initializeSystem();
 		game.buildGame();
@@ -100,9 +137,27 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadShapes()
-	{	avatarS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
-		avatarS.loadAnimation("driveForward", "Bike2Fwd.rka");
-		avatarS.loadAnimation("driveBackward", "Bike2Bkwd.rka");
+	{	
+		if (selectedBike == 1) {
+        avatarS = new AnimatedShape("Bike1.rkm", "Bike1.rks");
+        avatarS.loadAnimation("driveForward", "Bike1Fwd.rka");
+        avatarS.loadAnimation("driveBackward", "Bike1Bkwd.rka");
+    	} 
+		
+		else {
+        avatarS = new AnimatedShape("Bike2.rkm", "Bike2.rks");
+        avatarS.loadAnimation("driveForward", "Bike2Fwd.rka");
+        avatarS.loadAnimation("driveBackward", "Bike2Bkwd.rka");
+    	}
+
+		ghostBike1S = new AnimatedShape("Bike1.rkm", "Bike1.rks");
+        ghostBike1S.loadAnimation("driveForward", "Bike1Fwd.rka");
+        ghostBike1S.loadAnimation("driveBackward", "Bike1Bkwd.rka");
+
+		ghostBike2S = new AnimatedShape("Bike2.rkm", "Bike2.rks");
+        ghostBike2S.loadAnimation("driveForward", "Bike2Fwd.rka");
+        ghostBike2S.loadAnimation("driveBackward", "Bike2Bkwd.rka");
+		
 		npcS = new AnimatedShape("Bike1.rkm", "Bike1.rks");
 		npcS.loadAnimation("driveForward", "Bike1Fwd.rka");
 		npcS.loadAnimation("driveBackward", "Bike1Bkwd.rka");
@@ -115,11 +170,21 @@ public class MyGame extends VariableFrameRateGame
 
 	@Override
 	public void loadTextures()
-	{	avatartx = new TextureImage("Bike2Blu.jpg");
+	{	
+
+		bike1BlueTx = new TextureImage("Bike1Blu.jpg");
+		bike1GreenTx = new TextureImage("Bike1Grn.jpg");
+		bike1OrangeTx = new TextureImage("Bike1Org.jpg");
+
+		bike2BlueTx = new TextureImage("Bike2Blu.jpg");
+		bike2GreenTx = new TextureImage("Bike2Grn.jpg");
+		bike2OrangeTx = new TextureImage("Bike2Org.jpg");
 		npctx = new TextureImage("Bike1Grn.jpg");
 		ghosttx = new TextureImage("Bike1Org.jpg");
 		floortx = new TextureImage("grid.jpg");
 		boundaries = new TextureImage("boundaries.jpg");
+
+		avatartx = getBikeTxt(selectedBike, selectedColor);
 	}
 
 	@Override
@@ -205,7 +270,6 @@ public class MyGame extends VariableFrameRateGame
 		BkwdAction bkwdAction = new BkwdAction(moveController);
 		TurnLeftAction turnLeftAction = new TurnLeftAction(moveController);
 		TurnRightAction turnRightAction = new TurnRightAction(moveController);
-		CamToggleAction camToggleAction = new CamToggleAction(this);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.W, fwdAction,
@@ -226,12 +290,6 @@ public class MyGame extends VariableFrameRateGame
 			net.java.games.input.Component.Identifier.Key.D, turnRightAction,
 			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
-
-		im.associateActionWithAllKeyboards(
-			net.java.games.input.Component.Identifier.Key.SPACE, camToggleAction,
-			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY
-		);
-
 	}
 
 	@Override
@@ -251,61 +309,50 @@ public class MyGame extends VariableFrameRateGame
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
 
-		float camSpeed = (float)(frameTime * 0.005f);
-		float moveSpeed = (float)(frameTime * 2.5f);
-		float turnSpeed = (float)(frameTime * 1f);
-
-		Vector3f fwd = avatar.getWorldForwardVector();
-		Vector3f right = avatar.getLocalRightVector();
 
 
-
-		if (!paused) elapsTime += (frameTime) / 1000.0;
-		if (riding) {
-
+		if (!paused) {
+			elapsTime += (frameTime) / 1000.0;
 			moveController.update(frameTime);
-			avatarCam.updateRidingCamera();
-			
-		}
+			npcController.update();
 
-		else {
+		} 
 
-			Vector3f camLoc = cam.getLocation();
+		physController.update(frameTime);
+		physController.syncGameObjectsToPhysics();
 
-			if (moveForward)
-				camLoc.add(new Vector3f(fwd).mul(camSpeed));
-
-			if (moveBackward)
-				camLoc.add(new Vector3f(fwd).mul(-camSpeed));
-
-			if (turnLeft)
-				camLoc.add(new Vector3f(right).mul(-camSpeed));
-
-			if (turnRight)
-				camLoc.add(new Vector3f(right).mul(camSpeed));
-
-    		cam.setLocation(camLoc);
-			updateFreeCamera();
-		}
-
-		npcController.update();
-
+		avatarCam.updateRidingCamera();
 		
 		audioController.updateSound();
-
-		if (!mouseInitiated) initMouseMode();
 
 		hudController.update(elapsTime, gameState, counter);
 
 		processNetworking((float)elapsTime);
 
-		if ((moveForward || moveBackward || turnLeft || turnRight)
+		if ((moveController.isMovingOrTurning())
 		&& protClient != null && isClientConnected) {
 			protClient.sendMoveMessage(avatar.getWorldLocation());
 		}
 
-		physController.update(frameTime);
-		physController.syncGameObjectsToPhysics();
+		gm.updateGhostAnimations();
+
+		
+	}
+
+	public TextureImage getBikeTxt(int bike, String color) {
+		if (bike == 1){
+			if (color.equals("Blue")) return bike1BlueTx;
+			if (color.equals("Green")) return bike1GreenTx;
+			if (color.equals("Orange")) return bike1OrangeTx;
+		}
+
+		if (bike == 2){
+			if (color.equals("Blue")) return bike2BlueTx;
+			if (color.equals("Green")) return bike2GreenTx;
+			if (color.equals("Orange")) return bike2OrangeTx;
+		}
+
+		return bike1BlueTx;
 	}
 
 	@Override
@@ -320,136 +367,19 @@ public class MyGame extends VariableFrameRateGame
 	public GameObject getAvatar() {return avatar;}
 	public AnimatedShape getAnimatedAvatar() {return avatarS;}
 
-	public void toggleCameraMode() {
-		riding = !riding;
-	}
-
-	private void updateFreeCamera() {
-		cam = engine.getRenderSystem().getViewport("MAIN").getCamera();
-
-		//Calculate forward vector from yaw + pitch
-		Vector3f forward = new Vector3f(
-			(float)(Math.cos(pitchAngle) * Math.sin(yawAngle)),
-			(float)(Math.sin(pitchAngle)),
-			(float)(Math.cos(pitchAngle) * Math.cos(yawAngle))
-		);
-
-		forward.normalize();
-
-		//Calculate right vector
-		Vector3f worldUp = new Vector3f(0, 1, 0);
-		Vector3f right = new Vector3f();
-		forward.cross(worldUp, right).normalize();
-
-		//Calculate true up vector
-		Vector3f up = new Vector3f();
-		right.cross(forward, up).normalize();
-
-		//Apply to camera
-		cam.setN(forward);
-		cam.setU(right);
-		cam.setV(up);
-	}
-
-	public void setMoveForward(boolean val) { moveForward = val; }
-	public void setMoveBackward(boolean val) { moveBackward = val; }
-	public void setTurnLeft(boolean val) { turnLeft = val; }
-	public void setTurnRight(boolean val) { turnRight = val; }
-
-	@Override
-	public void mouseMoved(MouseEvent e)
-		{ // if robot is recentering and the MouseEvent location is in the center,
-		// then this event was generated by the robot
-		if (mouseInitiated)
-		{ if (isRecentering &&
-		centerX == e.getXOnScreen() && centerY == e.getYOnScreen())
-		{ // mouse recentered, recentering complete
-		isRecentering = false;
-		}
-		else
-		{ // event was due to a user mouse-move, and must be processed
-		curMouseX = e.getXOnScreen();
-		curMouseY = e.getYOnScreen();
-		float mouseDeltaX = prevMouseX - curMouseX;
-		float mouseDeltaY = prevMouseY - curMouseY;
-		if(!riding) {
-			yaw(mouseDeltaX);
-			pitch(mouseDeltaY);
-		}
-		prevMouseX = curMouseX;
-		prevMouseY = curMouseY;
-		// tell robot to put the cursor to the center (since user just moved it)
-		recenterMouse();
-		prevMouseX = centerX; // reset prev to center
-		prevMouseY = centerY;
-		}
-		} 
-	}
-
 	public void pauseGame() {
 		paused = !paused;
 	}
 
-	private void initMouseMode()
-	{ 	
-		mouseInitiated = true;
-		RenderSystem rs = engine.getRenderSystem();
-		Viewport vw = rs.getViewport("MAIN");
-		float left = vw.getActualLeft();
-		float bottom = vw.getActualBottom();
-		float width = vw.getActualWidth();
-		float height = vw.getActualHeight();
-		centerX = (int) (left + width/2);
-		centerY = (int) (bottom - height/2);
-		isRecentering = false;
-		try // note that some platforms may not support the Robot class
-		{ robot = new Robot(); } catch (AWTException ex)
-		{ throw new RuntimeException("Couldn't create Robot!"); }
-		recenterMouse();
-		prevMouseX = centerX; // 'prevMouse' defines the initial
-		prevMouseY = centerY; // mouse position
-		// also change the cursor
-		Image faceImage = new
-		ImageIcon("./assets/textures/face.gif").getImage();
-		Cursor faceCursor = Toolkit.getDefaultToolkit().
-		createCustomCursor(faceImage, new Point(0,0), "FaceCursor");
+	public AnimatedShape getGhostShape(int bike) {
+		if (bike == 1) return ghostBike1S;
+		return ghostBike2S;
 	}
-
-	private void recenterMouse()
-	{ // use the robot to move the mouse to the center point.
-		// Note that this generates one MouseEvent.
-		RenderSystem rs = engine.getRenderSystem();
-		Viewport vw = rs.getViewport("MAIN");
-		float left = vw.getActualLeft();
-		float bottom = vw.getActualBottom();
-		float width = vw.getActualWidth();
-		float height = vw.getActualHeight();
-		int centerX = (int) (left + width/2.0f);
-		int centerY = (int) (bottom - height/2.0f);
-		isRecentering = true;
-		robot.mouseMove((int)centerX, (int)centerY);
-	}
-
-	public void pitch(float mouseDeltaY)
-	{
-		float sensitivity = 0.002f;
-		pitchAngle += mouseDeltaY * sensitivity;
-
-		float maxPitch = (float)Math.toRadians(85.0);
-		if (pitchAngle > maxPitch) pitchAngle = maxPitch;
-    	if (pitchAngle < -maxPitch) pitchAngle = -maxPitch;
-	}
-
-	public void yaw(float mouseDeltaX)
-	{ 
-		float sensitivity = 0.002f;
-		yawAngle += mouseDeltaX * sensitivity;
-	}
-
-	public ObjShape getGhostShape() {return ghostS;}
 	public TextureImage getGhostTexture() {return ghosttx;}
 	public GhostManager getGhostManager() {return gm;}
 	public Engine getEngine () {return engine;}
+	public int getSelectedBike() {return selectedBike;}
+	public String getSelectedColor() {return selectedColor;} 
 
 	private void setupNetworking()
 	{	isClientConnected = false;	

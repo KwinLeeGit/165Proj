@@ -9,6 +9,7 @@ import java.util.Vector;
 import org.joml.*;
 
 import tage.*;
+import tage.shapes.AnimatedShape;
 import a2.MyGame;
 
 public class GhostManager
@@ -20,10 +21,11 @@ public class GhostManager
 	{	game = (MyGame)vfrg;
 	}
 	
-	public void createGhostAvatar(UUID id, Vector3f position) throws IOException
-	{	System.out.println("adding ghost with ID --> " + id);
-		ObjShape s = game.getGhostShape();
-		TextureImage t = game.getGhostTexture();
+	public void createGhostAvatar(UUID id, Vector3f position, int bike, String color) throws IOException
+	{	if (hasGhostAvatar(id)) return;
+		System.out.println("adding ghost with ID --> " + id);
+		AnimatedShape s = game.getGhostShape(bike);
+		TextureImage t = game.getBikeTxt(bike, color);
 		GhostAvatar newAvatar = new GhostAvatar(id, s, t, position);
 		Matrix4f initialScale = (new Matrix4f()).scaling(1f);
 		newAvatar.setLocalScale(initialScale);
@@ -53,13 +55,25 @@ public class GhostManager
 		return null;
 	}
 	
-	public void updateGhostAvatar(UUID id, Vector3f position)
+	public boolean updateGhostAvatar(UUID id, Vector3f position)
 	{	GhostAvatar ghostAvatar = findAvatar(id);
 		if (ghostAvatar != null)
 		{	ghostAvatar.setPosition(position);
+			return true;
 		}
 		else
 		{	System.out.println("tried to update ghost avatar position, but unable to find ghost in list");
+			return false;
 		}
+	}
+
+	public void updateGhostAnimations(){
+		for (GhostAvatar ghost : ghostAvatars) {
+			ghost.updateAnimation();
+		}
+	}
+
+	public boolean hasGhostAvatar(UUID id) {
+    return findAvatar(id) != null;
 	}
 }
