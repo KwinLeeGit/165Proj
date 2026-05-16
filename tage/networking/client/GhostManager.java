@@ -11,11 +11,14 @@ import org.joml.*;
 import tage.*;
 import tage.shapes.AnimatedShape;
 import a2.MyGame;
+import tage.physics.PhysicsController;
+import tage.physics.PhysicsObject;
 
 public class GhostManager
 {
 	private MyGame game;
 	private Vector<GhostAvatar> ghostAvatars = new Vector<GhostAvatar>();
+	private PhysicsController physController;
 
 	public GhostManager(VariableFrameRateGame vfrg)
 	{	game = (MyGame)vfrg;
@@ -30,6 +33,11 @@ public class GhostManager
 		Matrix4f initialScale = (new Matrix4f()).scaling(1f);
 		newAvatar.setLocalScale(initialScale);
 		ghostAvatars.add(newAvatar);
+
+		if (physController != null) {
+			PhysicsObject ghostP = physController.addGhostPhysics(newAvatar);
+			newAvatar.setGhostPhysicsObject(ghostP);
+		}
 	}
 	
 	public void removeGhostAvatar(UUID id)
@@ -75,5 +83,13 @@ public class GhostManager
 
 	public boolean hasGhostAvatar(UUID id) {
     return findAvatar(id) != null;
+	}
+
+	public Vector<GhostAvatar> getGhostAvatars() {
+		return ghostAvatars;
+	}
+
+	public void setPhysicsController(PhysicsController physController) {
+		this.physController = physController;
 	}
 }

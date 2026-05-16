@@ -10,6 +10,10 @@ import tage.networking.server.IClientInfo;
 
 public class GameServerUDP extends GameConnectionServer<UUID> 
 {
+
+	private static final int MAX_CLIENTS = 4;
+	private int clientCount = 0;
+
 	public GameServerUDP(int localPort) throws IOException 
 	{	super(localPort, ProtocolType.UDP);
 	}
@@ -25,10 +29,18 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			// Received Message Format: (join,localId)
 			if(messageTokens[0].compareTo("join") == 0)
 			{	try 
-				{	IClientInfo ci;					
+				{	UUID clientID = UUID.fromString(messageTokens[1]);
+
+					if (clientCount >= MAX_CLIENTS) {
+						System.out.println("Join rejected, server full: " + clientID);
+						sendJoinedMessage(clientID, false);
+						return;
+					}
+					
+					IClientInfo ci;					
 					ci = getServerSocket().createClientInfo(senderIP, senderPort);
-					UUID clientID = UUID.fromString(messageTokens[1]);
 					addClient(ci, clientID);
+					clientCount++;
 					System.out.println("Join request received from - " + clientID.toString());
 					sendJoinedMessage(clientID, true);
 				} 
@@ -43,6 +55,8 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 				System.out.println("Exit request received from - " + clientID.toString());
 				sendByeMessages(clientID);
 				removeClient(clientID);
+
+				if (clientCount > 0) clientCount--;
 			}
 			
 			// CREATE -- Case where server receives a create message (to specify avatar location)
@@ -69,7 +83,52 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			{	UUID clientID = UUID.fromString(messageTokens[1]);
 				String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4], messageTokens[5], messageTokens[6]};
 				sendMoveMessages(clientID, pos);
-	}	}	}
+			}
+			
+			// HIT
+			// Received: hit,targetId,shooterId,damage
+			if (messageTokens[0].compareTo("hit") == 0) {
+				UUID targetId = UUID.fromString(messageTokens[1]);
+
+				String messageToForward = "hit," + messageTokens[1];
+				messageToForward += "," + messageTokens[2];
+				messageToForward += "," + messageTokens[3];
+
+				try {
+					sendPacket(messageToForward, targetId);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			// DEAD
+			// Received: dead,victimId,killerId
+			if (messageTokens[0].compareTo("dead") == 0) {
+				UUID killerId = UUID.fromString(messageTokens[2]);
+
+				String messageToForward = "dead," + messageTokens[1];
+				messageToForward += "," + messageTokens[2];
+
+				try {
+					sendPacket(messageToForward, killerId);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			if(messageTokens[0].compareTo("gameover") == 0) {
+				try {
+					String messageToForward = "gameover," + messageTokens[1] + "," + messageTokens[2];
+					forwardPacketToAll(messageToForward, UUID.fromString(messageTokens[1]));
+					sendPacket(messageToForward, UUID.fromString(messageTokens[1]));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}	
+	}
+
+	
 
 	// Informs the client who just requested to join the server if their if their 
 	// request was able to be granted. 

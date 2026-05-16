@@ -131,7 +131,50 @@ public class ProtocolClient extends GameConnectionClient
 					ghostManager.updateGhostAvatar(ghostID, ghostPosition);
 				}
 				
-			}	
+			}
+			
+						// Handle HIT message
+			// Format: hit,targetId,shooterId,damage
+			if (messageTokens[0].compareTo("hit") == 0) {
+				UUID targetId = UUID.fromString(messageTokens[1]);
+				UUID shooterId = UUID.fromString(messageTokens[2]);
+				int damage = Integer.parseInt(messageTokens[3]);
+
+				if (targetId.equals(id)) {
+					boolean died = game.damagePlayer(damage);
+
+					if (died) {
+						game.respawn();
+						sendDeathMessage(shooterId);
+					}
+				}
+			}
+
+			// Handle DEAD message
+			// Format: dead,victimId,killerId
+			if (messageTokens[0].compareTo("dead") == 0) {
+				UUID victimId = UUID.fromString(messageTokens[1]);
+				UUID killerId = UUID.fromString(messageTokens[2]);
+
+				if (killerId.equals(id)) {
+					game.addScore(1);
+					System.out.println("Score = " + game.getScore());
+
+					if (game.isGameOver()) {
+						sendGameOverMessage(victimId);
+					}
+				}
+			}
+
+			if (messageTokens[0].compareTo("gameover") == 0) {
+				UUID winnerId = UUID.fromString(messageTokens[1]);
+
+				if (winnerId.equals(id)) {
+					game.addScore(0);
+				} else {
+					game.loseGame();
+				}
+			}
 		}	
 	}
 	
@@ -212,5 +255,37 @@ public class ProtocolClient extends GameConnectionClient
 		} catch (IOException e) 
 		{	e.printStackTrace();
 	}	}
+
+	public void sendHitMessage(UUID targetId, int damage) {
+		try {
+			String message = "hit," + targetId.toString();
+			message += "," + id.toString();
+			message += "," + damage;
+
+			sendPacket(message);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void sendDeathMessage(UUID killerId) {
+		try {
+			String message = "dead," + id.toString();
+			message += "," + killerId.toString();
+
+			sendPacket(message);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void sendGameOverMessage(UUID loserId) {
+		try {
+			String message = "gameover," + id.toString() + "," + loserId.toString();
+			sendPacket(message);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 }

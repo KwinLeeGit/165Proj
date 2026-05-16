@@ -27,6 +27,7 @@ import javax.swing.*;
 import org.joml.*;
 import net.java.games.input.*;
 import net.java.games.input.Component.Identifier.*;
+import tage.physics.*;
 
 
 public class MyGame extends VariableFrameRateGame
@@ -35,17 +36,22 @@ public class MyGame extends VariableFrameRateGame
 	private InputManager im;
 	private GhostManager gm;
 	private boolean paused=false;
+	private static final int WIN_SCORE = 10;
+	private boolean gameOver = false;
 	private String gameState = "play";
 	private boolean muliplayer;
 	private int selectedBike;
 	private String selectedColor;
-	private int counter=0;
+	private int playerHealth=100;
+	private int score;
 	private int walls;
 	private double lastFrameTime, currFrameTime, elapsTime, frameTime;
 
-	private GameObject avatar, npc, xAxis, yAxis, zAxis, floor;
+	private GameObject avatar, floor;
+	private ArrayList<GameObject> npcs = new ArrayList<>();
+	private ArrayList<NPCController> npcControllers = new ArrayList<>();
 	private AnimatedShape avatarS, npcS, ghostBike1S, ghostBike2S;
-	private ObjShape ghostS, xAxisS, yAxisS, zAxisS, floorS;
+	private ObjShape ghostS, floorS;
 	private TextureImage avatartx, npctx, floortx, boundaries, ghosttx;
 	private TextureImage bike1BlueTx, bike1GreenTx, bike1OrangeTx;
 	private TextureImage bike2BlueTx, bike2GreenTx, bike2OrangeTx;
@@ -59,10 +65,10 @@ public class MyGame extends VariableFrameRateGame
 	private boolean isClientConnected = false;
 	private CameraController avatarCam;
 	private AudioController audioController;
-	private NPCController npcController;
 	private MovementController moveController;
 	private HUDController hudController;
 	private PhysicsController physController;
+	private BulletController bulletController;
 
 	Vector3f origin = new Vector3f(0f,0f,0f);
 
@@ -162,9 +168,6 @@ public class MyGame extends VariableFrameRateGame
 		npcS.loadAnimation("driveForward", "Bike1Fwd.rka");
 		npcS.loadAnimation("driveBackward", "Bike1Bkwd.rka");
 		ghostS = new AnimatedShape("Bike1.rkm", "Bike1.rks");
-		xAxisS = new Line(origin, new Vector3f(200,0,0));
-		yAxisS = new Line(origin, new Vector3f(0,200,0));
-		zAxisS = new Line(origin, new Vector3f(0,0,200));
 		floorS = new TerrainPlane(1500);
 	}
 
@@ -204,15 +207,24 @@ public class MyGame extends VariableFrameRateGame
 		avatar.setLocalTranslation(initialTranslation);
 		avatar.setLocalScale(initialScale);
 
-		npc = new GameObject(GameObject.root(), npcS, npctx);
-		initialTranslation = (new Matrix4f()).translation(10,5,10);
-		initialScale = (new Matrix4f()).scaling(1.0f);
-		npc.setLocalTranslation(initialTranslation);
-		npc.setLocalScale(initialScale);
+		if (!muliplayer) {
+			for (int i = 0; i < 3; i++) {
+				GameObject npc = new GameObject(GameObject.root(), npcS, npctx);
 
-		xAxis = new GameObject(GameObject.root(), xAxisS);
-		yAxis = new GameObject(GameObject.root(), yAxisS);
-		zAxis = new GameObject(GameObject.root(), zAxisS);
+				float x = 20f + (i * 25f);
+				float z = 20f + (i * 25f);
+
+				Matrix4f npcTranslation = new Matrix4f().translation(x, 5f, z);
+				Matrix4f npcScale = new Matrix4f().scaling(1.0f);
+
+				npc.setLocalTranslation(npcTranslation);
+				npc.setLocalScale(npcScale);
+
+				npcs.add(npc);
+			}
+		}
+
+
 
 		floor = new GameObject(GameObject.root(), floorS, floortx);
 		initialTranslation = (new Matrix4f()).translation(0,0,0);
@@ -255,7 +267,7 @@ public class MyGame extends VariableFrameRateGame
 
 		setupNetworking();
 
-		audioController = new AudioController(engine, avatar, npc);
+		audioController = new AudioController(engine, avatar, npcs, gm);
 		audioController.loadSounds();
 		audioController.initSound();
 
@@ -270,6 +282,7 @@ public class MyGame extends VariableFrameRateGame
 		BkwdAction bkwdAction = new BkwdAction(moveController);
 		TurnLeftAction turnLeftAction = new TurnLeftAction(moveController);
 		TurnRightAction turnRightAction = new TurnRightAction(moveController);
+		ShootAction shootAction = new ShootAction(bulletController, avatar);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.W, fwdAction,
@@ -290,6 +303,30 @@ public class MyGame extends VariableFrameRateGame
 			net.java.games.input.Component.Identifier.Key.D, turnRightAction,
 			InputManager.INPUT_ACTION_TYPE.REPEAT_AND_RELEASE
 		);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.SPACE,
+			shootAction,
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY
+		);
+
+		im.associateActionWithAllGamepads(
+			net.java.games.input.Component.Identifier.Axis.X,
+			new GamepadTurnAction(moveController),
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllGamepads(
+			net.java.games.input.Component.Identifier.Axis.Z,
+			new GamepadTriggerMoveAction(moveController),
+			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN
+		);
+
+		im.associateActionWithAllGamepads(
+			net.java.games.input.Component.Identifier.Button._0,
+			new GamepadShootAction(bulletController, avatar),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY
+		);
 	}
 
 	@Override
@@ -309,12 +346,20 @@ public class MyGame extends VariableFrameRateGame
 		currFrameTime = System.currentTimeMillis();
 		frameTime = currFrameTime - lastFrameTime;
 
+		if (gameOver) {
+			avatarCam.updateRidingCamera();
+			hudController.update(getPlayerHealth(), gameState, getScore());
+			return;
+		}
+
 
 
 		if (!paused) {
 			elapsTime += (frameTime) / 1000.0;
 			moveController.update(frameTime);
-			npcController.update();
+			for (NPCController npcController : npcControllers) {
+    			npcController.update((float) frameTime);
+			}
 
 		} 
 
@@ -325,7 +370,7 @@ public class MyGame extends VariableFrameRateGame
 		
 		audioController.updateSound();
 
-		hudController.update(elapsTime, gameState, counter);
+		hudController.update(playerHealth, gameState, score);
 
 		processNetworking((float)elapsTime);
 
@@ -335,6 +380,7 @@ public class MyGame extends VariableFrameRateGame
 		}
 
 		gm.updateGhostAnimations();
+		bulletController.update();
 
 		
 	}
@@ -358,10 +404,19 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void initializePhysicsObjects() {
 		physController = new PhysicsController(engine);
-		physController.initializePhysicsObjects(avatar, npc, floor, boundaries);
-		npcController = new NPCController(npc, physController.getNpcPhysics(), avatar);
+		physController.initializePhysicsObjects(avatar, floor, boundaries);
+		gm.setPhysicsController(physController);
 		moveController = new MovementController(avatar, avatarS, physController.getAvatarPhysics());
+
+		if (!muliplayer) {
+			for (GameObject npc: npcs) {
+				PhysicsObject npcP = physController.addNPCPhysics(npc);
+				npcControllers.add(new NPCController(npc, npcP, avatar));
+			}
+		}
+		bulletController = new BulletController(engine, this);
 		initInputs();
+		
 	}
 
 	public GameObject getAvatar() {return avatar;}
@@ -417,5 +472,94 @@ public class MyGame extends VariableFrameRateGame
 			{	protClient.sendByeMessage();
 			}
 		}
+	}
+
+	public boolean damagePlayer(int amount) {
+		playerHealth -= amount;
+		if (playerHealth < 0) {
+			playerHealth = 100;
+			return true;
+		}
+
+		return false;
+	}
+
+	public int getPlayerHealth() {
+		return playerHealth;
+	}
+
+	public int getScore() {
+		return score;
+	}
+
+	public void addScore(int amount) {
+		if (gameOver) return;
+		
+		score += amount;
+
+		if (score >= WIN_SCORE) {
+			score = WIN_SCORE;
+			winGame();
+		}
+	}
+
+	public void winGame() {
+		gameOver = true;
+		gameState = "win";
+		setWinLights();
+	}
+
+	public void loseGame() {
+		gameOver = true;
+		gameState = "lose";
+		setLoseLights();
+	}
+
+	public boolean isGameOver() {
+		return gameOver;
+	}
+
+	private void setWinLights() {
+		light1.setDiffuse(0f, 1f, 0f);
+		light2.setDiffuse(0f, 1f, 0f);
+		light3.setDiffuse(0f, 1f, 0f);
+		light4.setDiffuse(0f, 1f, 0f);
+
+		Light.setGlobalAmbient(0f, 0.4f, 0f);
+	}
+
+	private void setLoseLights() {
+		light1.setDiffuse(1f, 0f, 0f);
+		light2.setDiffuse(1f, 0f, 0f);
+		light3.setDiffuse(1f, 0f, 0f);
+		light4.setDiffuse(1f, 0f, 0f);
+
+		Light.setGlobalAmbient(0.4f, 0f, 0f);
+	}
+
+	public void respawn() {
+		java.util.Random rand = new java.util.Random();
+
+		float halfMap = 450f;
+		float x = rand.nextFloat() * halfMap * 2f - halfMap;
+		float z = rand.nextFloat() * halfMap * 2f - halfMap;
+		float y = 8f;
+
+		Vector3f newPos = new Vector3f(x, y, z);
+
+		avatar.setLocalLocation(newPos);
+
+		PhysicsObject avatarP = physController.getAvatarPhysics();
+		avatarP.setLocation(new float[] { x, y, z });
+		avatarP.setLinearVelocity(new float[] { 0f, 0f, 0f });
+		avatarP.setAngularVelocity(new float[] { 0f, 0f, 0f });
+	}
+
+	public ProtocolClient getProtocolClient() {
+		return protClient;
+	}
+
+	public boolean getIsConnected() {
+		return isClientConnected;
 	}
 }

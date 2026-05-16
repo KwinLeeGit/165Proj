@@ -3,7 +3,7 @@ package tage.networking.client;
 import java.util.UUID;
 
 import tage.*;
-import tage.rml.Vector3f;
+import tage.physics.PhysicsObject;
 import tage.shapes.AnimatedShape;
 
 import org.joml.*;
@@ -18,9 +18,11 @@ public class GhostAvatar extends GameObject
 {
 	private UUID uuid;
 	private AnimatedShape animatedShape;
+	private PhysicsObject physicsObject;
 	private boolean moving = false;
 	private Vector3f lastPos = null;
 	private float moveThreshold = 1f;
+	private int health = 100;
 
 	public GhostAvatar(UUID id, AnimatedShape s, TextureImage t, Vector3f p) 
 	{	super(GameObject.root(), s, t);
@@ -39,7 +41,15 @@ public class GhostAvatar extends GameObject
 
 		float dist = lastPos.distance(m);
 
-		setLocalLocation(m); 
+		setLocalLocation(m);
+
+		if (physicsObject != null) {
+            physicsObject.setLocation(new float[] {
+                m.x(),
+                m.y(),
+                m.z()
+            });
+        }
 		
 		if (dist > moveThreshold) {
 			playMovingAnimation();
@@ -51,6 +61,7 @@ public class GhostAvatar extends GameObject
 
 		lastPos.set(m);
 	}
+
 	public void updateAnimation() {
 		if (moving) {
 			animatedShape.updateAnimation();
@@ -77,5 +88,27 @@ public class GhostAvatar extends GameObject
 			animatedShape.stopAnimation();
 			moving = false;
 		}
+	}
+
+	public void setGhostPhysicsObject(PhysicsObject p) {
+        physicsObject = p;
+        setPhysicsObject(p);
+    }
+
+	public PhysicsObject getGhostPhysicsObject() {
+        return physicsObject;
+    }
+
+	public boolean damage(int amount) {
+		health -= amount;
+		if (health < 0) {
+			health = 100;
+			return true;
+		}
+		return false;
+	}
+
+	public int getHealth() {
+		return health;
 	}
 }

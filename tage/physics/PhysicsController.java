@@ -3,6 +3,8 @@ package tage.physics;
 import tage.*;
 import tage.physics.*;
 import org.joml.*;
+import java.util.*;
+import tage.networking.client.*;
 
 public class PhysicsController {
 
@@ -10,8 +12,8 @@ public class PhysicsController {
     private PhysicsEngine physicsEngine;
 
     private PhysicsObject avatarP;
-    private PhysicsObject npcP;
     private PhysicsObject floorP;
+    private ArrayList<PhysicsObject> npcPhysicsObjects = new ArrayList<>();
 
     public PhysicsController(Engine engine) {
         this.engine = engine;
@@ -19,7 +21,6 @@ public class PhysicsController {
 
     public void initializePhysicsObjects(
         GameObject avatar,
-        GameObject npc,
         GameObject floor,
         TextureImage heightMap
     ) {
@@ -30,7 +31,6 @@ public class PhysicsController {
 
         float mass = 1f;
         float[] angularFactor = {0f, 1f, 0f};
-        float[] bikeSize = {2f, 2f, 5f};
         float radius = 1.25f;
         float height = 3.5f;
 
@@ -49,18 +49,6 @@ public class PhysicsController {
         avatarP.setBounciness(0f);
         avatarP.setAngularFactor(angularFactor);
         avatar.setPhysicsObject(avatarP);
-
-        loc = npc.getWorldLocation();
-        rot = new Quaternionf();
-        npc.getWorldRotation().getNormalizedRotation(rot);
-
-        npcP = engine.getSceneGraph().addPhysicsCapsule(mass, loc, rot, 2, radius, height);
-        npcP.setFriction(0f);
-        npcP.disableSleeping();
-        npcP.setDamping(0.6f, 0.8f);
-        npcP.setBounciness(0f);
-        npcP.setAngularFactor(angularFactor);
-        npc.setPhysicsObject(npcP);
 
         loc = floor.getWorldLocation();
         rot = new Quaternionf();
@@ -81,8 +69,42 @@ public class PhysicsController {
         floor.setPhysicsObject(floorP);
 
         engine.enableGraphicsWorldRender();
-        engine.enablePhysicsWorldRender();
+        //engine.enablePhysicsWorldRender();
     }
+
+    public PhysicsObject addNPCPhysics(GameObject npc) {
+        float mass = 1f;
+        float[] up = {0f, 1f, 0f};
+
+        Vector3f loc = npc.getWorldLocation();
+        Quaternionf rot = new Quaternionf();
+        npc.getWorldRotation().getNormalizedRotation(rot);
+
+        float radius = 1.25f;
+        float height = 3.5f;
+
+        PhysicsObject npcP = engine.getSceneGraph().addPhysicsCapsule(
+            mass,
+            loc,
+            rot,
+            2,
+            radius,
+            height
+        );
+
+        npcP.setFriction(0.2f);
+        npcP.setBounciness(0f);
+        npcP.setDamping(0.6f, 0.8f);
+        npcP.setAngularFactor(up);
+        npcP.disableSleeping();
+
+        npc.setPhysicsObject(npcP);
+        npcPhysicsObjects.add(npcP);
+
+        return npcP;
+    }
+
+
 
     public void update(double frameTimeMillis) {
         if (physicsEngine == null) {
@@ -101,6 +123,7 @@ public class PhysicsController {
     }
 
     private void syncGameObject(GameObject go) {
+        if (go instanceof GhostAvatar) return;
         PhysicsObject physicsObject = go.getPhysicsObject();
 
         Vector3f loc = physicsObject.getLocation();
@@ -124,12 +147,34 @@ public class PhysicsController {
         return avatarP;
     }
 
-    public PhysicsObject getNpcPhysics() {
-        return npcP;
-    }
-
     public PhysicsObject getFloorPhysics() {
         return floorP;
+    }
+
+    public PhysicsObject addGhostPhysics(GameObject ghost) {
+        float mass = 0f; // static/kinematic-style ghost hitbox
+        float radius = 1.25f;
+        float height = 3.5f;
+
+        Vector3f loc = ghost.getWorldLocation();
+        Quaternionf rot = new Quaternionf();
+        ghost.getWorldRotation().getNormalizedRotation(rot);
+
+        PhysicsObject ghostP = engine.getSceneGraph().addPhysicsCapsule(
+            mass,
+            loc,
+            rot,
+            2,
+            radius,
+            height
+        );
+
+        ghostP.setFriction(0.5f);
+        ghostP.setBounciness(0f);
+
+        ghost.setPhysicsObject(ghostP);
+
+        return ghostP;
     }
     
 }
